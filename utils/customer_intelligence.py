@@ -82,12 +82,57 @@ class CustomerIntelligenceService:
                             company_info += f"\n- Company Size: {accounts['company_size']}"
                         if accounts.get('estimated_revenue'):
                             company_info += f"\n- Estimated Revenue Range: {accounts['estimated_revenue']}"
+                        
+                        # Enhanced financial data display
                         if accounts.get('shareholders_funds'):
                             company_info += f"\n- Shareholders' Funds: {accounts['shareholders_funds']}"
+                        if accounts.get('shareholders_funds_current') and accounts.get('shareholders_funds_previous'):
+                            company_info += f"\n- Shareholders' Funds (Current): £{accounts['shareholders_funds_current']:,.0f}"
+                            company_info += f"\n- Shareholders' Funds (Previous): £{accounts['shareholders_funds_previous']:,.0f}"
+                            # Calculate change
+                            change = accounts['shareholders_funds_current'] - accounts['shareholders_funds_previous']
+                            change_pct = (change / accounts['shareholders_funds_previous']) * 100 if accounts['shareholders_funds_previous'] > 0 else 0
+                            company_info += f"\n- Shareholders' Funds Change: {change:+.0f} ({change_pct:+.1f}%)"
+                        
                         if accounts.get('cash_at_bank'):
                             company_info += f"\n- Cash at Bank: {accounts['cash_at_bank']}"
+                        if accounts.get('cash_at_bank_current') and accounts.get('cash_at_bank_previous'):
+                            company_info += f"\n- Cash at Bank (Current): £{accounts['cash_at_bank_current']:,.0f}"
+                            company_info += f"\n- Cash at Bank (Previous): £{accounts['cash_at_bank_previous']:,.0f}"
+                            # Calculate change
+                            change = accounts['cash_at_bank_current'] - accounts['cash_at_bank_previous']
+                            change_pct = (change / accounts['cash_at_bank_previous']) * 100 if accounts['cash_at_bank_previous'] > 0 else 0
+                            company_info += f"\n- Cash Change: {change:+.0f} ({change_pct:+.1f}%)"
+                        
                         if accounts.get('turnover'):
                             company_info += f"\n- Turnover: {accounts['turnover']}"
+                        if accounts.get('turnover_current') and accounts.get('turnover_previous'):
+                            company_info += f"\n- Turnover (Current): £{accounts['turnover_current']:,.0f}"
+                            company_info += f"\n- Turnover (Previous): £{accounts['turnover_previous']:,.0f}"
+                            # Calculate growth
+                            growth = accounts['turnover_current'] - accounts['turnover_previous']
+                            growth_pct = (growth / accounts['turnover_previous']) * 100 if accounts['turnover_previous'] > 0 else 0
+                            company_info += f"\n- Revenue Growth: {growth:+.0f} ({growth_pct:+.1f}%)"
+                        
+                        # Enhanced employee information
+                        if accounts.get('employees'):
+                            company_info += f"\n- Estimated Employees: {accounts['employees']}"
+                        if accounts.get('employee_count'):
+                            company_info += f"\n- Employee Count: {accounts['employee_count']}"
+                        if accounts.get('employee_range'):
+                            company_info += f"\n- Employee Range: {accounts['employee_range']}"
+                        
+                        # Financial health and trends
+                        if accounts.get('revenue_growth'):
+                            company_info += f"\n- Revenue Growth Trend: {accounts['revenue_growth']}"
+                        if accounts.get('profitability_trend'):
+                            company_info += f"\n- Profitability Trend: {accounts['profitability_trend']}"
+                        if accounts.get('financial_health_score'):
+                            company_info += f"\n- Financial Health Score: {accounts['financial_health_score']}/100"
+                        if accounts.get('years_of_data'):
+                            company_info += f"\n- Years of Financial Data Available: {accounts['years_of_data']}"
+                        
+                        # Additional financial metrics
                         if accounts.get('net_assets'):
                             company_info += f"\n- Net Assets: {accounts['net_assets']}"
                         if accounts.get('current_assets'):
@@ -96,10 +141,23 @@ class CustomerIntelligenceService:
                             company_info += f"\n- Current Liabilities: {accounts['current_liabilities']}"
                         if accounts.get('profit_before_tax'):
                             company_info += f"\n- Profit Before Tax: {accounts['profit_before_tax']}"
-                        if accounts.get('employees'):
-                            company_info += f"\n- Estimated Employees: {accounts['employees']}"
                         if accounts.get('filing_date'):
                             company_info += f"\n- Last Accounts Filed: {accounts['filing_date']}"
+                        
+                        # Multi-year financial history
+                        if accounts.get('detailed_financials'):
+                            company_info += f"\n\nFinancial History (Last {len(accounts['detailed_financials'])} Years):"
+                            for i, year_data in enumerate(accounts['detailed_financials'][:3]):  # Show last 3 years
+                                year_label = "Current" if i == 0 else f"Year -{i}"
+                                company_info += f"\n{year_label} Year ({year_data.get('filing_date', 'Unknown')}):"
+                                if year_data.get('turnover'):
+                                    company_info += f"\n  - Turnover: £{year_data['turnover']:,.0f}" if isinstance(year_data['turnover'], (int, float)) else f"\n  - Turnover: {year_data['turnover']}"
+                                if year_data.get('shareholders_funds'):
+                                    company_info += f"\n  - Shareholders' Funds: £{year_data['shareholders_funds']:,.0f}" if isinstance(year_data['shareholders_funds'], (int, float)) else f"\n  - Shareholders' Funds: {year_data['shareholders_funds']}"
+                                if year_data.get('cash_at_bank'):
+                                    company_info += f"\n  - Cash at Bank: £{year_data['cash_at_bank']:,.0f}" if isinstance(year_data['cash_at_bank'], (int, float)) else f"\n  - Cash at Bank: {year_data['cash_at_bank']}"
+                                if year_data.get('profit_before_tax'):
+                                    company_info += f"\n  - Profit Before Tax: £{year_data['profit_before_tax']:,.0f}" if isinstance(year_data['profit_before_tax'], (int, float)) else f"\n  - Profit Before Tax: {year_data['profit_before_tax']}"
                         
                         # Add active directors information
                         if accounts.get('active_directors'):
@@ -139,32 +197,38 @@ class CustomerIntelligenceService:
 
             1. **Business Sector Classification**: Choose the most appropriate sector from: office, retail, industrial, healthcare, education, hospitality, manufacturing, technology, finance, government, other
 
-            2. **Company Size Assessment**: Estimate:
-               - Number of employees (small: 1-50, medium: 51-250, large: 251+)
-               - Revenue range (e.g., "£100K-£500K", "£1M-£5M", "£10M+")
+            2. **Company Size Assessment**: Use the Companies House financial data to provide accurate estimates:
+               - Number of employees (use the employee estimates from Companies House data if available)
+               - Revenue range (use actual turnover data from Companies House if available, otherwise estimate)
                - Business size category (Small, Medium, Large, Enterprise)
 
             3. **Primary Business Activities**: Describe what this company does, their main products/services
 
-            4. **Technology Maturity**: Assess their likely technology sophistication:
+            4. **Technology Maturity**: Assess their likely technology sophistication based on company size and financial data:
                - Basic: Simple IT needs, basic infrastructure
                - Intermediate: Some advanced systems, growing IT requirements
                - Advanced: Sophisticated IT infrastructure, multiple systems
                - Enterprise: Complex, integrated systems, dedicated IT teams
 
-            5. **IT Budget Estimate**: Estimate their likely annual IT spending range
+            5. **IT Budget Estimate**: Based on their revenue and company size, estimate their likely annual IT spending range
 
-            6. **Growth Potential**: Assess potential for business growth and expansion
+            6. **Financial Health Analysis**: Analyze the financial data from Companies House:
+               - Comment on their profitability trend (Growing/Stable/Declining)
+               - Assess their financial stability based on shareholders' funds and cash position
+               - Evaluate revenue growth trends
+               - Identify any financial risks or opportunities
 
-            7. **Technology Needs Prediction**: What structured cabling, networking, and security needs might they have?
+            7. **Growth Potential**: Assess potential for business growth and expansion based on financial trends and company size
 
-            8. **Competitive Landscape**: Identify potential competitors or similar companies
+            8. **Technology Needs Prediction**: What structured cabling, networking, and security needs might they have based on their size and financial position?
 
-            9. **Business Opportunities**: What opportunities exist for IT infrastructure projects?
+            9. **Competitive Landscape**: Identify potential competitors or similar companies
 
-            10. **Risk Factors**: What challenges or risks might affect their IT projects?
+            10. **Business Opportunities**: What opportunities exist for IT infrastructure projects given their financial capacity and growth trajectory?
 
-            11. **Address and Location Analysis**: Based on the company information, identify:
+            11. **Risk Factors**: What challenges or risks might affect their IT projects based on their financial position?
+
+            12. **Address and Location Analysis**: Based on the company information, identify:
                 - Primary business address (if different from registered address)
                 - Potential additional sites/locations mentioned
                 - Geographic spread of operations
@@ -188,7 +252,11 @@ class CustomerIntelligenceService:
                 "primary_address": "string (main business address if different from registered)",
                 "additional_sites": "string (list of additional locations/sites)",
                 "location_analysis": "string (geographic spread and location requirements)",
-                "company_registration": "string (ONLY include if found in Companies House data - DO NOT guess or make up numbers)"
+                "company_registration": "string (ONLY include if found in Companies House data - DO NOT guess or make up numbers)",
+                "financial_health_analysis": "string (detailed analysis of financial position, profitability trends, and stability)",
+                "employee_analysis": "string (analysis of employee count and company size based on Companies House data)",
+                "revenue_analysis": "string (analysis of turnover trends and revenue growth)",
+                "profitability_assessment": "string (assessment of profitability trends and financial performance)"
             }}
 
             Focus on UK market context and be realistic in your assessments.

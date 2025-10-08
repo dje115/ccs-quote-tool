@@ -194,19 +194,32 @@ class ExternalDataService:
                 'accounts_type': None,
                 'company_size': None,
                 'shareholders_funds': None,
+                'shareholders_funds_current': None,
+                'shareholders_funds_previous': None,
                 'net_assets': None,
                 'current_assets': None,
                 'current_liabilities': None,
                 'cash_at_bank': None,
+                'cash_at_bank_current': None,
+                'cash_at_bank_previous': None,
                 'turnover': None,
+                'turnover_current': None,
+                'turnover_previous': None,
                 'gross_profit': None,
                 'operating_profit': None,
                 'profit_before_tax': None,
                 'profit_after_tax': None,
                 'employees': None,
+                'employee_count': None,
+                'employee_range': None,
                 'period_start': None,
                 'period_end': None,
-                'estimated_revenue': None
+                'estimated_revenue': None,
+                'revenue_growth': None,
+                'profitability_trend': None,
+                'financial_health_score': None,
+                'years_of_data': None,
+                'detailed_financials': []
             }
             
             # Get company accounts data
@@ -234,56 +247,192 @@ class ExternalDataService:
                 except:
                     pass
             
-            # Get filing history for detailed accounts
+            # Get filing history for detailed accounts - get more years for trend analysis
             filing_url = f"{base_url}/company/{company_number}/filing-history"
-            params = {'category': 'accounts', 'items_per_page': 5}
+            params = {'category': 'accounts', 'items_per_page': 10}  # Get up to 10 years
             
-            response = self.session.get(filing_url, params=params, headers=headers, timeout=10)
+            response = self.session.get(filing_url, params=params, headers=headers, timeout=15)
             if response.status_code == 200:
                 filing_data = response.json()
                 
                 if filing_data.get('items'):
-                    latest_filing = filing_data['items'][0]
+                    # Process multiple years of data
+                    financial_history = []
                     
-                    # Extract company size from description
-                    description = latest_filing.get('description', '').lower()
-                    if 'micro-entity' in description:
-                        accounts_info['company_size'] = 'Micro-entity'
-                        accounts_info['estimated_revenue'] = '£0 - £632K'
-                    elif 'small' in description:
-                        accounts_info['company_size'] = 'Small'
-                        accounts_info['estimated_revenue'] = '£632K - £10.2M'
-                    elif 'medium' in description:
-                        accounts_info['company_size'] = 'Medium'
-                        accounts_info['estimated_revenue'] = '£10.2M - £36M'
-                    elif 'large' in description or 'group' in description:
-                        accounts_info['company_size'] = 'Large'
-                        accounts_info['estimated_revenue'] = '£36M+'
+                    for i, filing in enumerate(filing_data['items'][:5]):  # Process last 5 years
+                        year_data = {
+                            'filing_date': filing.get('date'),
+                            'description': filing.get('description', ''),
+                            'shareholders_funds': None,
+                            'cash_at_bank': None,
+                            'turnover': None,
+                            'profit_before_tax': None,
+                            'employees': None,
+                            'company_size': None
+                        }
+                        
+                        # Extract company size from description
+                        description = filing.get('description', '').lower()
+                        if 'micro-entity' in description:
+                            year_data['company_size'] = 'Micro-entity'
+                            if i == 0:  # Latest year
+                                accounts_info['company_size'] = 'Micro-entity'
+                                accounts_info['estimated_revenue'] = '£0 - £632K'
+                        elif 'small' in description:
+                            year_data['company_size'] = 'Small'
+                            if i == 0:
+                                accounts_info['company_size'] = 'Small'
+                                accounts_info['estimated_revenue'] = '£632K - £10.2M'
+                        elif 'medium' in description:
+                            year_data['company_size'] = 'Medium'
+                            if i == 0:
+                                accounts_info['company_size'] = 'Medium'
+                                accounts_info['estimated_revenue'] = '£10.2M - £36M'
+                        elif 'large' in description or 'group' in description:
+                            year_data['company_size'] = 'Large'
+                            if i == 0:
+                                accounts_info['company_size'] = 'Large'
+                                accounts_info['estimated_revenue'] = '£36M+'
+                        
+                        # Try to get detailed financial data from the filing document
+                        try:
+                            # Get the filing document details
+                            document_url = f"{base_url}/company/{company_number}/filing-history/{filing.get('transaction_id')}"
+                            doc_response = self.session.get(document_url, headers=headers, timeout=10)
+                            
+                            if doc_response.status_code == 200:
+                                doc_data = doc_response.json()
+                                annotations = doc_data.get('annotations', [])
+                                
+                                for annotation in annotations:
+                                    ann_desc = annotation.get('description', '').lower()
+                                    
+                                    # Extract financial figures with better parsing
+                                    import re
+                                    
+                                    # Look for shareholders' funds/equity
+                                    if any(term in ann_desc for term in ['shareholder', 'equity', 'capital', 'reserve']):
+                                        numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
+                                        if numbers:
+                                            # Convert to numeric value for calculations
+                                            try:
+                                                value = float(numbers[0].replace(',', ''))
+                                                year_data['shareholders_funds'] = value
+                                                if i == 0:
+                                                    accounts_info['shareholders_funds_current'] = value
+                                                    accounts_info['shareholders_funds'] = f"£{value:,.0f}"
+                                                elif i == 1:
+                                                    accounts_info['shareholders_funds_previous'] = value
+                                            except:
+                                                year_data['shareholders_funds'] = numbers[0]
+                                    
+                                    # Look for cash at bank
+                                    if any(term in ann_desc for term in ['cash', 'bank', 'liquid']):
+                                        numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
+                                        if numbers:
+                                            try:
+                                                value = float(numbers[0].replace(',', ''))
+                                                year_data['cash_at_bank'] = value
+                                                if i == 0:
+                                                    accounts_info['cash_at_bank_current'] = value
+                                                    accounts_info['cash_at_bank'] = f"£{value:,.0f}"
+                                                elif i == 1:
+                                                    accounts_info['cash_at_bank_previous'] = value
+                                            except:
+                                                year_data['cash_at_bank'] = numbers[0]
+                                    
+                                    # Look for turnover/revenue
+                                    if any(term in ann_desc for term in ['turnover', 'revenue', 'sales']):
+                                        numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
+                                        if numbers:
+                                            try:
+                                                value = float(numbers[0].replace(',', ''))
+                                                year_data['turnover'] = value
+                                                if i == 0:
+                                                    accounts_info['turnover_current'] = value
+                                                    accounts_info['turnover'] = f"£{value:,.0f}"
+                                                elif i == 1:
+                                                    accounts_info['turnover_previous'] = value
+                                            except:
+                                                year_data['turnover'] = numbers[0]
+                                    
+                                    # Look for profit before tax
+                                    if any(term in ann_desc for term in ['profit', 'loss']):
+                                        numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
+                                        if numbers:
+                                            try:
+                                                value = float(numbers[0].replace(',', ''))
+                                                year_data['profit_before_tax'] = value
+                                            except:
+                                                year_data['profit_before_tax'] = numbers[0]
+                        
+                        except Exception as e:
+                            print(f"Error getting detailed filing data: {e}")
+                        
+                        financial_history.append(year_data)
                     
-                    # Try to extract financial data from annotations if available
-                    annotations = latest_filing.get('annotations', [])
-                    for annotation in annotations:
-                        description = annotation.get('description', '').lower()
+                    accounts_info['detailed_financials'] = financial_history
+                    accounts_info['years_of_data'] = len(financial_history)
+                    
+                    # Calculate trends and growth
+                    if len(financial_history) >= 2:
+                        current = financial_history[0]
+                        previous = financial_history[1]
                         
-                        # Look for financial figures in annotations
-                        if 'shareholder' in description or 'equity' in description:
-                            # Try to extract numbers
-                            import re
-                            numbers = re.findall(r'£?[\d,]+(?:\.\d{2})?', description)
-                            if numbers:
-                                accounts_info['shareholders_funds'] = numbers[0]
+                        # Calculate revenue growth
+                        if current.get('turnover') and previous.get('turnover'):
+                            try:
+                                current_rev = float(current['turnover']) if isinstance(current['turnover'], (int, float)) else float(str(current['turnover']).replace(',', ''))
+                                previous_rev = float(previous['turnover']) if isinstance(previous['turnover'], (int, float)) else float(str(previous['turnover']).replace(',', ''))
+                                if previous_rev > 0:
+                                    growth = ((current_rev - previous_rev) / previous_rev) * 100
+                                    accounts_info['revenue_growth'] = f"{growth:+.1f}%"
+                            except:
+                                pass
                         
-                        if 'cash' in description:
-                            numbers = re.findall(r'£?[\d,]+(?:\.\d{2})?', description)
-                            if numbers:
-                                accounts_info['cash_at_bank'] = numbers[0]
+                        # Calculate profitability trend
+                        if current.get('shareholders_funds') and previous.get('shareholders_funds'):
+                            try:
+                                current_funds = float(current['shareholders_funds']) if isinstance(current['shareholders_funds'], (int, float)) else float(str(current['shareholders_funds']).replace(',', ''))
+                                previous_funds = float(previous['shareholders_funds']) if isinstance(previous['shareholders_funds'], (int, float)) else float(str(previous['shareholders_funds']).replace(',', ''))
+                                if current_funds > previous_funds:
+                                    accounts_info['profitability_trend'] = 'Growing'
+                                elif current_funds < previous_funds:
+                                    accounts_info['profitability_trend'] = 'Declining'
+                                else:
+                                    accounts_info['profitability_trend'] = 'Stable'
+                            except:
+                                pass
                         
-                        if 'turnover' in description or 'revenue' in description:
-                            numbers = re.findall(r'£?[\d,]+(?:\.\d{2})?', description)
-                            if numbers:
-                                accounts_info['turnover'] = numbers[0]
+                        # Calculate financial health score (simple scoring system)
+                        health_score = 50  # Base score
+                        
+                        # Revenue growth bonus
+                        if accounts_info.get('revenue_growth'):
+                            try:
+                                growth_pct = float(accounts_info['revenue_growth'].replace('%', '').replace('+', ''))
+                                if growth_pct > 10:
+                                    health_score += 20
+                                elif growth_pct > 0:
+                                    health_score += 10
+                                elif growth_pct > -5:
+                                    health_score += 5
+                                else:
+                                    health_score -= 10
+                            except:
+                                pass
+                        
+                        # Profitability trend bonus
+                        if accounts_info.get('profitability_trend') == 'Growing':
+                            health_score += 15
+                        elif accounts_info.get('profitability_trend') == 'Stable':
+                            health_score += 5
+                        elif accounts_info.get('profitability_trend') == 'Declining':
+                            health_score -= 10
+                        
+                        accounts_info['financial_health_score'] = min(100, max(0, health_score))
             
-            # Get detailed officers/directors information
+            # Get detailed officers/directors information and better employee estimation
             officers_url = f"{base_url}/company/{company_number}/officers"
             try:
                 officer_response = self.session.get(officers_url, headers=headers, timeout=5)
@@ -291,15 +440,75 @@ class ExternalDataService:
                     officer_data = officer_response.json()
                     total_officers = officer_data.get('total_results', 0)
                     
-                    # Estimate based on number of officers
+                    # Enhanced employee estimation based on multiple factors
+                    estimated_employees = None
+                    employee_range = None
+                    
+                    # Factor 1: Number of officers (directors/managers)
                     if total_officers <= 2:
-                        accounts_info['employees'] = '1-10'
+                        base_estimate = '1-10'
+                        employee_range = '1-10'
+                    elif total_officers <= 3:
+                        base_estimate = '5-25'
+                        employee_range = '5-25'
                     elif total_officers <= 5:
-                        accounts_info['employees'] = '11-50'
-                    elif total_officers <= 10:
-                        accounts_info['employees'] = '51-200'
+                        base_estimate = '11-50'
+                        employee_range = '11-50'
+                    elif total_officers <= 8:
+                        base_estimate = '51-100'
+                        employee_range = '51-100'
+                    elif total_officers <= 15:
+                        base_estimate = '101-200'
+                        employee_range = '101-200'
                     else:
-                        accounts_info['employees'] = '200+'
+                        base_estimate = '200+'
+                        employee_range = '200+'
+                    
+                    # Factor 2: Company size from accounts (more reliable)
+                    if accounts_info.get('company_size'):
+                        size = accounts_info['company_size']
+                        if size == 'Micro-entity':
+                            estimated_employees = '1-10'
+                            employee_range = '1-10'
+                        elif size == 'Small':
+                            estimated_employees = '11-50'
+                            employee_range = '11-50'
+                        elif size == 'Medium':
+                            estimated_employees = '51-250'
+                            employee_range = '51-250'
+                        elif size == 'Large':
+                            estimated_employees = '250+'
+                            employee_range = '250+'
+                    
+                    # Factor 3: Revenue-based estimation (if available)
+                    if accounts_info.get('turnover_current'):
+                        try:
+                            turnover = float(accounts_info['turnover_current'])
+                            # Rough estimation: £50K-£100K revenue per employee for IT services
+                            if turnover > 0:
+                                rev_per_employee = 75000  # Average for IT services
+                                estimated_count = int(turnover / rev_per_employee)
+                                
+                                if estimated_count <= 10:
+                                    rev_based_range = '1-10'
+                                elif estimated_count <= 50:
+                                    rev_based_range = '11-50'
+                                elif estimated_count <= 200:
+                                    rev_based_range = '51-200'
+                                else:
+                                    rev_based_range = '200+'
+                                
+                                # Use revenue-based estimate if it seems more reasonable
+                                if not estimated_employees or (estimated_count >= 5 and estimated_count <= 500):
+                                    estimated_employees = f"{estimated_count}"
+                                    employee_range = rev_based_range
+                        except:
+                            pass
+                    
+                    # Set final employee estimates
+                    accounts_info['employees'] = estimated_employees or base_estimate
+                    accounts_info['employee_range'] = employee_range or base_estimate
+                    accounts_info['employee_count'] = estimated_employees
                     
                     # Extract active directors information
                     active_directors = []

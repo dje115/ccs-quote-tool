@@ -264,6 +264,137 @@
                     {% endif %}
                     {% endif %}
                     
+                    <!-- Financial Data from Companies House -->
+                    {% if customer.companies_house_data %}
+                    {% set ch_data = customer.companies_house_data|from_json %}
+                    {% if ch_data.get('accounts_detail') %}
+                    <div class="mt-4 pt-3 border-top">
+                        <h6><i class="fas fa-chart-line text-success"></i> Financial Data (Companies House)</h6>
+                        
+                        {% set accounts = ch_data['accounts_detail'] %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Current Financial Position</h6>
+                                {% if accounts.get('shareholders_funds') %}
+                                <p><strong>Shareholders' Funds:</strong> {{ accounts['shareholders_funds'] }}</p>
+                                {% endif %}
+                                {% if accounts.get('cash_at_bank') %}
+                                <p><strong>Cash at Bank:</strong> {{ accounts['cash_at_bank'] }}</p>
+                                {% endif %}
+                                {% if accounts.get('turnover') %}
+                                <p><strong>Turnover:</strong> {{ accounts['turnover'] }}</p>
+                                {% endif %}
+                                {% if accounts.get('employees') %}
+                                <p><strong>Estimated Employees:</strong> {{ accounts['employees'] }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-primary">Financial Trends</h6>
+                                {% if accounts.get('revenue_growth') %}
+                                <p><strong>Revenue Growth:</strong> 
+                                    <span class="badge {% if accounts['revenue_growth'].startswith('+') %}bg-success{% elif accounts['revenue_growth'].startswith('-') %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {{ accounts['revenue_growth'] }}
+                                    </span>
+                                </p>
+                                {% endif %}
+                                {% if accounts.get('profitability_trend') %}
+                                <p><strong>Profitability Trend:</strong> 
+                                    <span class="badge {% if accounts['profitability_trend'] == 'Growing' %}bg-success{% elif accounts['profitability_trend'] == 'Stable' %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ accounts['profitability_trend'] }}
+                                    </span>
+                                </p>
+                                {% endif %}
+                                {% if accounts.get('financial_health_score') %}
+                                <p><strong>Financial Health Score:</strong> 
+                                    <span class="badge {% if accounts['financial_health_score'] >= 70 %}bg-success{% elif accounts['financial_health_score'] >= 40 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {{ accounts['financial_health_score'] }}/100
+                                    </span>
+                                </p>
+                                {% endif %}
+                                {% if accounts.get('years_of_data') %}
+                                <p><strong>Years of Data:</strong> {{ accounts['years_of_data'] }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Multi-year Financial History -->
+                        {% if accounts.get('detailed_financials') and accounts['detailed_financials']|length > 1 %}
+                        <div class="mt-3">
+                            <h6 class="text-primary">Financial History</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Year</th>
+                                            <th>Turnover</th>
+                                            <th>Shareholders' Funds</th>
+                                            <th>Cash at Bank</th>
+                                            <th>Profit Before Tax</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for year_data in accounts['detailed_financials'][:3] %}
+                                        <tr>
+                                            <td>{{ year_data.get('filing_date', 'Unknown')[:4] }}</td>
+                                            <td>
+                                                {% if year_data.get('turnover') %}
+                                                    {% if year_data['turnover'] is number %}
+                                                        £{{ "{:,.0f}".format(year_data['turnover']) }}
+                                                    {% else %}
+                                                        {{ year_data['turnover'] }}
+                                                    {% endif %}
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if year_data.get('shareholders_funds') %}
+                                                    {% if year_data['shareholders_funds'] is number %}
+                                                        £{{ "{:,.0f}".format(year_data['shareholders_funds']) }}
+                                                    {% else %}
+                                                        {{ year_data['shareholders_funds'] }}
+                                                    {% endif %}
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if year_data.get('cash_at_bank') %}
+                                                    {% if year_data['cash_at_bank'] is number %}
+                                                        £{{ "{:,.0f}".format(year_data['cash_at_bank']) }}
+                                                    {% else %}
+                                                        {{ year_data['cash_at_bank'] }}
+                                                    {% endif %}
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if year_data.get('profit_before_tax') %}
+                                                    {% if year_data['profit_before_tax'] is number %}
+                                                        £{{ "{:,.0f}".format(year_data['profit_before_tax']) }}
+                                                    {% else %}
+                                                        {{ year_data['profit_before_tax'] }}
+                                                    {% endif %}
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <button class="btn btn-sm btn-outline-success mt-2" onclick="showDetailedFinancials()">
+                            <i class="fas fa-chart-bar"></i> View Detailed Financial Analysis
+                        </button>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    
                     <!-- External Data Sources -->
                     {% if customer.linkedin_url or customer.linkedin_data or customer.companies_house_data or customer.website_data %}
                     <div class="mt-4 pt-3 border-top">
