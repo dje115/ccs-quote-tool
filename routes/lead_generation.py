@@ -544,6 +544,98 @@ def list_leads():
                          status_filter=status_filter,
                          campaign_filter=campaign_filter)
 
+@lead_generation_bp.route('/all-leads')
+@login_required
+def view_all_leads():
+    """Comprehensive view of all leads across all campaigns with advanced filtering"""
+    page = request.args.get('page', 1, type=int)
+    per_page = 25
+    
+    # Build query with joins for campaign and conversion data
+    leads_query = db.session.query(Lead, LeadGenerationCampaign).join(
+        LeadGenerationCampaign, Lead.campaign_id == LeadGenerationCampaign.id
+    ).order_by(desc(Lead.created_at))
+    
+    # Advanced filtering options
+    campaign_id = request.args.get('campaign_id', type=int)
+    status_filter = request.args.get('status')
+    sector_filter = request.args.get('sector')
+    score_min = request.args.get('score_min', type=int)
+    score_max = request.args.get('score_max', type=int)
+    search_term = request.args.get('search', '').strip()
+    
+    # Apply filters
+    if campaign_id:
+        leads_query = leads_query.filter(Lead.campaign_id == campaign_id)
+    
+    if status_filter:
+        leads_query = leads_query.filter(Lead.status == LeadStatus[status_filter.upper()])
+    
+    if sector_filter:
+        leads_query = leads_query.filter(Lead.business_sector.ilike(f'%{sector_filter}%'))
+    
+    if score_min is not None:
+        leads_query = leads_query.filter(Lead.lead_score >= score_min)
+    
+    if score_max is not None:
+        leads_query = leads_query.filter(Lead.lead_score <= score_max)
+    
+    if search_term:
+        leads_query = leads_query.filter(
+            or_(
+                Lead.company_name.ilike(f'%{search_term}%'),
+                Lead.contact_name.ilike(f'%{search_term}%'),
+                Lead.contact_email.ilike(f'%{search_term}%'),
+                Lead.business_sector.ilike(f'%{search_term}%')
+            )
+        )
+    
+    # Paginate results
+    leads_pagination = leads_query.paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    # Get filter options
+    campaigns = LeadGenerationCampaign.query.order_by(desc(LeadGenerationCampaign.created_at)).all()
+    
+    # Get unique sectors for filter dropdown
+    sectors = db.session.query(Lead.business_sector).distinct().filter(
+        Lead.business_sector.isnot(None)
+    ).order_by(Lead.business_sector).all()
+    sectors = [s[0] for s in sectors if s[0]]
+    
+    # Get lead statistics
+    total_leads = Lead.query.count()
+    converted_leads = Lead.query.filter(Lead.status == LeadStatus.CONVERTED).count()
+    qualified_leads = Lead.query.filter(Lead.status == LeadStatus.QUALIFIED).count()
+    new_leads = Lead.query.filter(Lead.status == LeadStatus.NEW).count()
+    
+    # Get recent activity (last 7 days)
+    recent_date = datetime.utcnow() - timedelta(days=7)
+    recent_leads = Lead.query.filter(Lead.created_at >= recent_date).count()
+    
+    stats = {
+        'total': total_leads,
+        'converted': converted_leads,
+        'qualified': qualified_leads,
+        'new': new_leads,
+        'recent': recent_leads
+    }
+    
+    return render_template('lead_generation/all_leads.html',
+                         leads=leads_pagination,
+                         campaigns=campaigns,
+                         sectors=sectors,
+                         stats=stats,
+                         filters={
+                             'campaign_id': campaign_id,
+                             'status': status_filter,
+                             'sector': sector_filter,
+                             'score_min': score_min,
+                             'score_max': score_max,
+                             'search': search_term
+                         })
+
 @lead_generation_bp.route('/leads/<int:lead_id>')
 @login_required
 def view_lead(lead_id):

@@ -298,23 +298,23 @@ class ExternalDataService:
                         try:
                             # Get the filing document details
                             document_url = f"{base_url}/company/{company_number}/filing-history/{filing.get('transaction_id')}"
-                            doc_response = self.session.get(document_url, headers=headers, timeout=10)
+                            doc_response = self.session.get(document_url, headers=headers, timeout=15)
                             
                             if doc_response.status_code == 200:
                                 doc_data = doc_response.json()
                                 annotations = doc_data.get('annotations', [])
                                 
+                                # Enhanced financial data extraction
+                                import re
+                                
                                 for annotation in annotations:
                                     ann_desc = annotation.get('description', '').lower()
                                     
-                                    # Extract financial figures with better parsing
-                                    import re
-                                    
-                                    # Look for shareholders' funds/equity
-                                    if any(term in ann_desc for term in ['shareholder', 'equity', 'capital', 'reserve']):
+                                    # More comprehensive financial data extraction
+                                    # Look for shareholders' funds/equity/capital and reserves
+                                    if any(term in ann_desc for term in ['shareholder', 'equity', 'capital', 'reserve', 'net assets']):
                                         numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
                                         if numbers:
-                                            # Convert to numeric value for calculations
                                             try:
                                                 value = float(numbers[0].replace(',', ''))
                                                 year_data['shareholders_funds'] = value
@@ -326,8 +326,8 @@ class ExternalDataService:
                                             except:
                                                 year_data['shareholders_funds'] = numbers[0]
                                     
-                                    # Look for cash at bank
-                                    if any(term in ann_desc for term in ['cash', 'bank', 'liquid']):
+                                    # Look for cash at bank and cash equivalents
+                                    if any(term in ann_desc for term in ['cash', 'bank', 'liquid', 'equivalent']):
                                         numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
                                         if numbers:
                                             try:
@@ -341,8 +341,8 @@ class ExternalDataService:
                                             except:
                                                 year_data['cash_at_bank'] = numbers[0]
                                     
-                                    # Look for turnover/revenue
-                                    if any(term in ann_desc for term in ['turnover', 'revenue', 'sales']):
+                                    # Look for turnover/revenue/sales
+                                    if any(term in ann_desc for term in ['turnover', 'revenue', 'sales', 'income']):
                                         numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
                                         if numbers:
                                             try:
@@ -357,7 +357,7 @@ class ExternalDataService:
                                                 year_data['turnover'] = numbers[0]
                                     
                                     # Look for profit before tax
-                                    if any(term in ann_desc for term in ['profit', 'loss']):
+                                    if any(term in ann_desc for term in ['profit', 'loss', 'pbt']):
                                         numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
                                         if numbers:
                                             try:
@@ -365,6 +365,42 @@ class ExternalDataService:
                                                 year_data['profit_before_tax'] = value
                                             except:
                                                 year_data['profit_before_tax'] = numbers[0]
+                                    
+                                    # Look for net assets (alternative to shareholders' funds)
+                                    if 'net assets' in ann_desc:
+                                        numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
+                                        if numbers and not year_data.get('shareholders_funds'):
+                                            try:
+                                                value = float(numbers[0].replace(',', ''))
+                                                year_data['shareholders_funds'] = value
+                                                if i == 0:
+                                                    accounts_info['shareholders_funds_current'] = value
+                                                    accounts_info['shareholders_funds'] = f"£{value:,.0f}"
+                                                elif i == 1:
+                                                    accounts_info['shareholders_funds_previous'] = value
+                                            except:
+                                                year_data['shareholders_funds'] = numbers[0]
+                                
+                                # If we didn't get data from annotations, try to get from the document metadata
+                                if not any([year_data.get('turnover'), year_data.get('shareholders_funds'), year_data.get('cash_at_bank')]):
+                                    # Try to extract from document description or other fields
+                                    doc_description = filing.get('description', '').lower()
+                                    
+                                    # Extract any financial figures from the description
+                                    financial_figures = re.findall(r'£([\d,]+(?:\.\d{2})?)', doc_description)
+                                    if financial_figures:
+                                        # Try to assign the largest figure as turnover (most common)
+                                        try:
+                                            largest_figure = max([float(f.replace(',', '')) for f in financial_figures])
+                                            if largest_figure > 1000:  # Reasonable minimum for turnover
+                                                year_data['turnover'] = largest_figure
+                                                if i == 0:
+                                                    accounts_info['turnover_current'] = largest_figure
+                                                    accounts_info['turnover'] = f"£{largest_figure:,.0f}"
+                                                elif i == 1:
+                                                    accounts_info['turnover_previous'] = largest_figure
+                                        except:
+                                            pass
                         
                         except Exception as e:
                             print(f"Error getting detailed filing data: {e}")

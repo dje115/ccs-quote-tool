@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+
+{% block title %}All Leads - Comprehensive View{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-users text-primary"></i> All Leads - Comprehensive View</h2>
+            <p class="text-muted">View and manage all leads across all campaigns with advanced filtering options</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('lead_generation.dashboard') }}" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+            <a href="{{ url_for('lead_generation.create_campaign') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> New Campaign
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ stats.total }}</h4>
+                    <small>Total Leads</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4>{{ stats.converted }}</h4>
+                    <small>Converted</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4>{{ stats.qualified }}</h4>
+                    <small>Qualified</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4>{{ stats.new }}</h4>
+                    <small>New Leads</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h4>{{ stats.recent }}</h4>
+                    <small>Last 7 Days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-dark text-white">
+                <div class="card-body text-center">
+                    <h4>{{ "%.1f"|format((stats.converted / stats.total * 100) if stats.total > 0 else 0) }}%</h4>
+                    <small>Conversion Rate</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5><i class="fas fa-filter"></i> Advanced Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" name="search" 
+                           value="{{ filters.search or '' }}" 
+                           placeholder="Company, contact, email...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Campaign</label>
+                    <select class="form-select" name="campaign_id">
+                        <option value="">All Campaigns</option>
+                        {% for campaign in campaigns %}
+                        <option value="{{ campaign.id }}" {% if filters.campaign_id == campaign.id %}selected{% endif %}>
+                            {{ campaign.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="status">
+                        <option value="">All Statuses</option>
+                        <option value="new" {% if filters.status == 'new' %}selected{% endif %}>New</option>
+                        <option value="qualified" {% if filters.status == 'qualified' %}selected{% endif %}>Qualified</option>
+                        <option value="converted" {% if filters.status == 'converted' %}selected{% endif %}>Converted</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Sector</label>
+                    <select class="form-select" name="sector">
+                        <option value="">All Sectors</option>
+                        {% for sector in sectors %}
+                        <option value="{{ sector }}" {% if filters.sector == sector %}selected{% endif %}>
+                            {{ sector }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Min Score</label>
+                    <input type="number" class="form-control" name="score_min" 
+                           value="{{ filters.score_min or '' }}" 
+                           min="0" max="100" placeholder="0">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Max Score</label>
+                    <input type="number" class="form-control" name="score_max" 
+                           value="{{ filters.score_max or '' }}" 
+                           min="0" max="100" placeholder="100">
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search"></i> Filter
+                    </button>
+                    <a href="{{ url_for('lead_generation.view_all_leads') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leads Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5><i class="fas fa-list"></i> Leads ({{ leads.total }} total)</h5>
+            <div>
+                <button class="btn btn-sm btn-outline-primary" onclick="selectAllLeads()">
+                    <i class="fas fa-check-square"></i> Select All
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="bulkConvert()" disabled id="bulkConvertBtn">
+                    <i class="fas fa-exchange-alt"></i> Convert Selected
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            {% if leads.items %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="40">
+                                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                            </th>
+                            <th>Company</th>
+                            <th>Contact</th>
+                            <th>Campaign</th>
+                            <th>Sector</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Website</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lead, campaign in leads.items %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="lead-checkbox" value="{{ lead.id }}" 
+                                       onchange="updateBulkActions()">
+                            </td>
+                            <td>
+                                <strong>{{ lead.company_name }}</strong>
+                                {% if not lead.website %}
+                                <i class="fas fa-exclamation-triangle text-warning ms-1" 
+                                   title="No website verified"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lead.contact_name %}
+                                <div>{{ lead.contact_name }}</div>
+                                {% endif %}
+                                {% if lead.contact_email %}
+                                <small class="text-muted">{{ lead.contact_email }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('lead_generation.view_campaign', campaign_id=campaign.id) }}" 
+                                   class="text-decoration-none">
+                                    {{ campaign.name }}
+                                </a>
+                                <br><small class="text-muted">{{ campaign.created_at.strftime('%Y-%m-%d') }}</small>
+                            </td>
+                            <td>
+                                {% if lead.business_sector %}
+                                <span class="badge bg-info">{{ lead.business_sector }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lead.lead_score %}
+                                <span class="badge {% if lead.lead_score >= 70 %}bg-success{% elif lead.lead_score >= 40 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ lead.lead_score }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge {% if lead.status.name == 'CONVERTED' %}bg-success{% elif lead.status.name == 'QUALIFIED' %}bg-warning{% else %}bg-primary{% endif %}">
+                                    {{ lead.status.value.replace('_', ' ').title() }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if lead.website %}
+                                <a href="{{ lead.website }}" target="_blank" class="text-decoration-none">
+                                    <i class="fas fa-external-link-alt"></i> Website
+                                </a>
+                                {% else %}
+                                <span class="text-muted">No website</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ lead.created_at.strftime('%Y-%m-%d') }}
+                                <br><small class="text-muted">{{ lead.created_at.strftime('%H:%M') }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('lead_generation.view_lead', lead_id=lead.id) }}" 
+                                       class="btn btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if lead.status.name != 'CONVERTED' %}
+                                    <a href="{{ url_for('lead_generation.convert_lead_to_customer', lead_id=lead.id) }}" 
+                                       class="btn btn-outline-success" title="Convert to Customer"
+                                       onclick="return confirm('Convert this lead to a customer?')">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </a>
+                                    {% else %}
+                                    <a href="{{ url_for('crm.view_customer', customer_id=lead.converted_to_customer_id) }}" 
+                                       class="btn btn-outline-info" title="View Customer">
+                                        <i class="fas fa-user"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if leads.pages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Leads pagination">
+                    <ul class="pagination pagination-sm justify-content-center mb-0">
+                        {% if leads.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('lead_generation.view_all_leads', page=leads.prev_num, **request.args) }}">Previous</a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in leads.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != leads.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('lead_generation.view_all_leads', page=page_num, **request.args) }}">{{ page_num }}</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if leads.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('lead_generation.view_all_leads', page=leads.next_num, **request.args) }}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No leads found</h5>
+                <p class="text-muted">
+                    {% if filters.search or filters.campaign_id or filters.status or filters.sector or filters.score_min or filters.score_max %}
+                    Try adjusting your filters or 
+                    {% endif %}
+                    <a href="{{ url_for('lead_generation.create_campaign') }}">create a new campaign</a> to generate leads.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.lead-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateBulkActions();
+}
+
+function selectAllLeads() {
+    const selectAll = document.getElementById('selectAll');
+    selectAll.checked = true;
+    toggleSelectAll();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.lead-checkbox:checked');
+    const bulkConvertBtn = document.getElementById('bulkConvertBtn');
+    
+    bulkConvertBtn.disabled = checkboxes.length === 0;
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.lead-checkbox');
+    const selectAll = document.getElementById('selectAll');
+    
+    if (checkboxes.length === 0) {
+        selectAll.indeterminate = false;
+        selectAll.checked = false;
+    } else if (checkboxes.length === allCheckboxes.length) {
+        selectAll.indeterminate = false;
+        selectAll.checked = true;
+    } else {
+        selectAll.indeterminate = true;
+    }
+}
+
+function bulkConvert() {
+    const checkboxes = document.querySelectorAll('.lead-checkbox:checked');
+    const leadIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (leadIds.length === 0) {
+        alert('Please select leads to convert.');
+        return;
+    }
+    
+    if (confirm(`Convert ${leadIds.length} selected lead(s) to customers?`)) {
+        // TODO: Implement bulk conversion
+        alert('Bulk conversion feature will be implemented soon.');
+    }
+}
+</script>
+{% endblock %}

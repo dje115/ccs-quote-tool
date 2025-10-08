@@ -388,9 +388,17 @@
                         </div>
                         {% endif %}
                         
-                        <button class="btn btn-sm btn-outline-success mt-2" onclick="showDetailedFinancials()">
-                            <i class="fas fa-chart-bar"></i> View Detailed Financial Analysis
-                        </button>
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-success me-2" onclick="showDetailedFinancials()">
+                                <i class="fas fa-chart-bar"></i> View Detailed Financial Analysis
+                            </button>
+                            {% if customer.company_registration %}
+                            <a href="https://find-and-update.company-information.service.gov.uk/company/{{ customer.company_registration }}" 
+                               target="_blank" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-external-link-alt"></i> Companies House Filing Page
+                            </a>
+                            {% endif %}
+                        </div>
                     </div>
                     {% endif %}
                     {% endif %}
@@ -790,6 +798,163 @@ function showCompaniesHouseData() {
     content += '</div>';
     
     showModal('Companies House Data', content);
+    {% endif %}
+}
+
+function showDetailedFinancials() {
+    {% if customer.companies_house_data %}
+    const data = JSON.parse('{{ customer.companies_house_data|safe }}');
+    const accounts = data.accounts_detail;
+    
+    if (!accounts) {
+        showModal('Detailed Financial Analysis', '<p class="text-muted">No detailed financial data available.</p>');
+        return;
+    }
+    
+    let content = '<div class="detailed-financials">';
+    content += '<h6><i class="fas fa-chart-line"></i> Detailed Financial Analysis</h6>';
+    
+    // Current Financial Position
+    content += '<div class="mb-4">';
+    content += '<h6 class="text-primary">Current Financial Position</h6>';
+    
+    if (accounts.shareholders_funds) {
+        content += `<p><strong>Shareholders' Funds:</strong> ${accounts.shareholders_funds}</p>`;
+    }
+    if (accounts.cash_at_bank) {
+        content += `<p><strong>Cash at Bank:</strong> ${accounts.cash_at_bank}</p>`;
+    }
+    if (accounts.turnover) {
+        content += `<p><strong>Turnover:</strong> ${accounts.turnover}</p>`;
+    }
+    if (accounts.employees) {
+        content += `<p><strong>Estimated Employees:</strong> ${accounts.employees}</p>`;
+    }
+    if (accounts.company_size) {
+        content += `<p><strong>Company Size:</strong> <span class="badge bg-info">${accounts.company_size}</span></p>`;
+    }
+    if (accounts.filing_date) {
+        content += `<p><strong>Last Accounts Filed:</strong> ${accounts.filing_date}</p>`;
+    }
+    
+    content += '</div>';
+    
+    // Financial Trends
+    if (accounts.revenue_growth || accounts.profitability_trend || accounts.financial_health_score) {
+        content += '<div class="mb-4">';
+        content += '<h6 class="text-primary">Financial Trends</h6>';
+        
+        if (accounts.revenue_growth) {
+            const growthClass = accounts.revenue_growth.startsWith('+') ? 'text-success' : 
+                              accounts.revenue_growth.startsWith('-') ? 'text-danger' : 'text-muted';
+            content += `<p><strong>Revenue Growth:</strong> <span class="${growthClass}">${accounts.revenue_growth}</span></p>`;
+        }
+        if (accounts.profitability_trend) {
+            const trendClass = accounts.profitability_trend === 'Growing' ? 'text-success' : 
+                              accounts.profitability_trend === 'Declining' ? 'text-danger' : 'text-warning';
+            content += `<p><strong>Profitability Trend:</strong> <span class="${trendClass}">${accounts.profitability_trend}</span></p>`;
+        }
+        if (accounts.financial_health_score) {
+            const healthClass = accounts.financial_health_score >= 70 ? 'text-success' : 
+                               accounts.financial_health_score >= 40 ? 'text-warning' : 'text-danger';
+            content += `<p><strong>Financial Health Score:</strong> <span class="${healthClass}">${accounts.financial_health_score}/100</span></p>`;
+        }
+        if (accounts.years_of_data) {
+            content += `<p><strong>Years of Data Available:</strong> ${accounts.years_of_data}</p>`;
+        }
+        
+        content += '</div>';
+    }
+    
+    // Multi-year Financial History
+    if (accounts.detailed_financials && accounts.detailed_financials.length > 0) {
+        content += '<div class="mb-4">';
+        content += '<h6 class="text-primary">Financial History</h6>';
+        
+        content += '<div class="table-responsive">';
+        content += '<table class="table table-sm table-striped">';
+        content += '<thead><tr><th>Year</th><th>Turnover</th><th>Shareholders\' Funds</th><th>Cash at Bank</th><th>Profit Before Tax</th></tr></thead>';
+        content += '<tbody>';
+        
+        accounts.detailed_financials.forEach(yearData => {
+            content += '<tr>';
+            content += `<td>${yearData.filing_date ? yearData.filing_date.substring(0, 4) : 'Unknown'}</td>`;
+            
+            // Turnover
+            if (yearData.turnover) {
+                if (typeof yearData.turnover === 'number') {
+                    content += `<td>£${yearData.turnover.toLocaleString()}</td>`;
+                } else {
+                    content += `<td>${yearData.turnover}</td>`;
+                }
+            } else {
+                content += '<td class="text-muted">N/A</td>';
+            }
+            
+            // Shareholders' Funds
+            if (yearData.shareholders_funds) {
+                if (typeof yearData.shareholders_funds === 'number') {
+                    content += `<td>£${yearData.shareholders_funds.toLocaleString()}</td>`;
+                } else {
+                    content += `<td>${yearData.shareholders_funds}</td>`;
+                }
+            } else {
+                content += '<td class="text-muted">N/A</td>';
+            }
+            
+            // Cash at Bank
+            if (yearData.cash_at_bank) {
+                if (typeof yearData.cash_at_bank === 'number') {
+                    content += `<td>£${yearData.cash_at_bank.toLocaleString()}</td>`;
+                } else {
+                    content += `<td>${yearData.cash_at_bank}</td>`;
+                }
+            } else {
+                content += '<td class="text-muted">N/A</td>';
+            }
+            
+            // Profit Before Tax
+            if (yearData.profit_before_tax) {
+                if (typeof yearData.profit_before_tax === 'number') {
+                    const profitClass = yearData.profit_before_tax >= 0 ? 'text-success' : 'text-danger';
+                    content += `<td class="${profitClass}">£${yearData.profit_before_tax.toLocaleString()}</td>`;
+                } else {
+                    content += `<td>${yearData.profit_before_tax}</td>`;
+                }
+            } else {
+                content += '<td class="text-muted">N/A</td>';
+            }
+            
+            content += '</tr>';
+        });
+        
+        content += '</tbody></table></div></div>';
+    }
+    
+    // Analysis Summary
+    content += '<div class="mb-4">';
+    content += '<h6 class="text-primary">Analysis Summary</h6>';
+    
+    if (accounts.financial_health_score >= 70) {
+        content += '<p class="text-success"><i class="fas fa-check-circle"></i> <strong>Strong Financial Health:</strong> This company shows good financial stability and growth potential.</p>';
+    } else if (accounts.financial_health_score >= 40) {
+        content += '<p class="text-warning"><i class="fas fa-exclamation-triangle"></i> <strong>Moderate Financial Health:</strong> This company has average financial stability.</p>';
+    } else {
+        content += '<p class="text-danger"><i class="fas fa-exclamation-circle"></i> <strong>Weak Financial Health:</strong> This company may have financial challenges.</p>';
+    }
+    
+    if (accounts.profitability_trend === 'Growing') {
+        content += '<p class="text-success"><i class="fas fa-arrow-up"></i> <strong>Growing Profitability:</strong> The company is showing positive financial trends.</p>';
+    } else if (accounts.profitability_trend === 'Declining') {
+        content += '<p class="text-danger"><i class="fas fa-arrow-down"></i> <strong>Declining Profitability:</strong> The company may be facing financial challenges.</p>';
+    }
+    
+    content += '</div>';
+    content += '</div>';
+    
+    showModal('Detailed Financial Analysis', content);
+    {% else %}
+    showModal('Detailed Financial Analysis', '<p class="text-muted">No Companies House data available for detailed analysis.</p>');
     {% endif %}
 }
 
