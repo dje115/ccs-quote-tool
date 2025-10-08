@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}All Campaigns - CCS Quote Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">
+                <i class="fas fa-list text-primary"></i> All Campaigns
+            </h1>
+            <a href="{{ url_for('lead_generation.create_campaign') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> New Campaign
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                {% if campaigns %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Campaign Name</th>
+                                <th>Status</th>
+                                <th>Type</th>
+                                <th>Location</th>
+                                <th>Leads Found</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for campaign in campaigns %}
+                            <tr>
+                                <td>
+                                    <strong>{{ campaign.name }}</strong>
+                                    {% if campaign.description %}
+                                        <br><small class="text-muted">{{ campaign.description }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if campaign.status.value == 'completed' else 'warning' if campaign.status.value == 'running' else 'secondary' }}">
+                                        {{ campaign.status.value.title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ campaign.prompt_type.replace('_', ' ').title() }}</span>
+                                </td>
+                                <td>
+                                    {{ campaign.postcode }}
+                                    {% if campaign.distance_miles %}
+                                        <br><small class="text-muted">{{ campaign.distance_miles }} miles</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ campaign.total_found or 0 }}</span>
+                                </td>
+                                <td>{{ campaign.created_at.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('lead_generation.view_campaign', campaign_id=campaign.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        {% if campaign.status.value == 'draft' %}
+                                            <a href="{{ url_for('lead_generation.run_campaign', campaign_id=campaign.id) }}" 
+                                               class="btn btn-sm btn-success" 
+                                               onclick="return confirm('Run this campaign? This will generate leads using AI.')">
+                                                <i class="fas fa-play"></i> Run
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-rocket fa-3x text-muted mb-3"></i>
+                    <h5>No Campaigns Yet</h5>
+                    <p class="text-muted">Create your first lead generation campaign to start finding potential customers.</p>
+                    <a href="{{ url_for('lead_generation.create_campaign') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create Your First Campaign
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

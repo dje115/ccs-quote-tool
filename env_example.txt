@@ -1,0 +1,32 @@
+# CCS Quote Tool Environment Variables
+# Copy this file to .env and update with your actual values
+
+# Flask Configuration
+SECRET_KEY=your-secret-key-change-this-in-production
+FLASK_ENV=development
+FLASK_DEBUG=True
+
+# Database Configuration
+DATABASE_URL=sqlite:///ccs_quotes.db
+
+# OpenAI Configuration
+OPENAI_API_KEY=sk-your-openai-api-key-here
+
+# Google Maps Configuration
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key-here
+
+# Email Configuration (Optional - for sending quotes)
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+
+# Admin Configuration
+ADMIN_EMAIL=admin@ccs-cabling.com
+
+# Application Settings
+QUOTES_PER_PAGE=20
+MAX_CONTENT_LENGTH=16777216
+
+

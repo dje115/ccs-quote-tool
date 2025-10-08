@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Lead Generation Dashboard - CCS Quote Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">
+                <i class="fas fa-search-plus text-primary"></i> Lead Generation
+            </h1>
+            <a href="{{ url_for('lead_generation.create_campaign') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> New Campaign
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.total_leads }}</h4>
+                        <p class="card-text">Total Leads</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.new_leads }}</h4>
+                        <p class="card-text">New Leads</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-star fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ stats.converted_leads }}</h4>
+                        <p class="card-text">Converted</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Campaigns -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-rocket text-info"></i> Recent Campaigns
+                </h5>
+                <a href="{{ url_for('lead_generation.list_campaigns') }}" class="btn btn-sm btn-outline-primary">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_campaigns %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Campaign</th>
+                                <th>Status</th>
+                                <th>Leads</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for campaign in recent_campaigns %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('lead_generation.view_campaign', campaign_id=campaign.id) }}" 
+                                       class="text-decoration-none">
+                                        {{ campaign.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge 
+                                        {% if campaign.status.value == 'completed' %}bg-success
+                                        {% elif campaign.status.value == 'running' %}bg-warning
+                                        {% elif campaign.status.value == 'failed' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ campaign.status.value.title() }}
+                                    </span>
+                                </td>
+                                <td>{{ campaign.leads_created }}</td>
+                                <td>{{ campaign.created_at.strftime('%d/%m/%Y') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-rocket fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No campaigns created yet</p>
+                    <a href="{{ url_for('lead_generation.create_campaign') }}" class="btn btn-primary">
+                        Create Your First Campaign
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Leads -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-star text-warning"></i> Recent Leads
+                </h5>
+                <a href="{{ url_for('lead_generation.list_leads') }}" class="btn btn-sm btn-outline-primary">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_leads %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Company</th>
+                                <th>Score</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lead in recent_leads %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('lead_generation.view_lead', lead_id=lead.id) }}" 
+                                       class="text-decoration-none">
+                                        {{ lead.company_name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge 
+                                        {% if lead.lead_score >= 70 %}bg-success
+                                        {% elif lead.lead_score >= 40 %}bg-warning
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ lead.lead_score }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge 
+                                        {% if lead.status.value == 'new' %}bg-primary
+                                        {% elif lead.status.value == 'contacted' %}bg-info
+                                        {% elif lead.status.value == 'qualified' %}bg-warning
+                                        {% elif lead.status.value == 'converted' %}bg-success
+                                        {% elif lead.status.value == 'rejected' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ lead.status.value.title() }}
+                                    </span>
+                                </td>
+                                <td>{{ lead.created_at.strftime('%d/%m/%Y') }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-star fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No leads generated yet</p>
+                    <a href="{{ url_for('lead_generation.create_campaign') }}" class="btn btn-primary">
+                        Generate Your First Leads
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt text-success"></i> Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <a href="{{ url_for('lead_generation.create_campaign') }}" class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-plus"></i> New Campaign
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('lead_generation.list_leads', status='new') }}" class="btn btn-outline-warning w-100 mb-2">
+                            <i class="fas fa-star"></i> New Leads
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('lead_generation.list_leads', status='qualified') }}" class="btn btn-outline-info w-100 mb-2">
+                            <i class="fas fa-check-circle"></i> Qualified Leads
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('lead_generation.list_campaigns') }}" class="btn btn-outline-secondary w-100 mb-2">
+                            <i class="fas fa-list"></i> All Campaigns
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lead Generation Tips -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-lightbulb text-warning"></i> Lead Generation Tips
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-map-marker-alt text-primary"></i> Location Targeting</h6>
+                        <p class="text-muted small">Use specific postcodes and reasonable distances (10-30 miles) for better results. Target areas where you can easily travel for site visits.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-filter text-info"></i> Quality Over Quantity</h6>
+                        <p class="text-muted small">Start with smaller, more targeted campaigns (50-100 leads) to test and refine your approach before running larger searches.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-clock text-warning"></i> Follow Up Quickly</h6>
+                        <p class="text-muted small">Contact new leads within 24-48 hours while they're still warm. Set up follow-up reminders and track your contact attempts.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-chart-line text-success"></i> Track Your Success</h6>
+                        <p class="text-muted small">Monitor which campaign types and prompts generate the best leads. Use this data to improve future campaigns.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

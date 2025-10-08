@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+
+{% block title %}Lead Details - {{ lead.company_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-tie text-primary"></i>
+                        Lead Details
+                    </h4>
+                    <div>
+                        <a href="{{ url_for('lead_generation.convert_lead_to_customer', lead_id=lead.id) }}" 
+                           class="btn btn-success btn-sm">
+                            <i class="fas fa-plus"></i> Convert to Customer
+                        </a>
+                        <a href="{{ url_for('lead_generation.leads_list') }}" 
+                           class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Back to Leads
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Company Information -->
+                        <div class="col-md-6">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-building"></i> Company Information
+                            </h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Company Name:</strong></td>
+                                    <td>{{ lead.company_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Website:</strong></td>
+                                    <td>
+                                        {% if lead.website %}
+                                            <a href="{{ lead.website }}" target="_blank" class="text-primary">
+                                                {{ lead.website }}
+                                                <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                        {% else %}
+                                            <span class="text-warning">
+                                                <i class="fas fa-exclamation-triangle"></i> 
+                                                <strong>No Website Verified</strong>
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Business Sector:</strong></td>
+                                    <td>
+                                        {% if lead.business_sector %}
+                                            <span class="badge badge-info">{{ lead.business_sector }}</span>
+                                        {% else %}
+                                            <span class="text-muted">Not specified</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Company Size:</strong></td>
+                                    <td>{{ lead.company_size or 'Not specified' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Registration:</strong></td>
+                                    <td>
+                                        {% if lead.company_registration %}
+                                            {{ lead.company_registration }}
+                                            {% if lead.registration_confirmed %}
+                                                <span class="badge badge-success ml-1">Verified</span>
+                                            {% else %}
+                                                <span class="badge badge-warning ml-1">Unverified</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Not available</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Contact Information -->
+                        <div class="col-md-6">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-address-book"></i> Contact Information
+                            </h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Contact Name:</strong></td>
+                                    <td>{{ lead.contact_name or 'Not provided' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Contact Email:</strong></td>
+                                    <td>
+                                        {% if lead.contact_email %}
+                                            <a href="mailto:{{ lead.contact_email }}" class="text-primary">
+                                                {{ lead.contact_email }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Not provided</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Contact Phone:</strong></td>
+                                    <td>
+                                        {% if lead.contact_phone %}
+                                            <a href="tel:{{ lead.contact_phone }}" class="text-primary">
+                                                {{ lead.contact_phone }}
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Not provided</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Contact Title:</strong></td>
+                                    <td>{{ lead.contact_title or 'Not specified' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Address Information -->
+                    {% if lead.address or lead.postcode %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-map-marker-alt"></i> Address Information
+                            </h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Address:</strong></td>
+                                    <td>{{ lead.address or 'Not provided' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Postcode:</strong></td>
+                                    <td>{{ lead.postcode or 'Not provided' }}</td>
+                                </tr>
+                                {% if lead.distance_from_search_center %}
+                                <tr>
+                                    <td><strong>Distance from Search Center:</strong></td>
+                                    <td>{{ "%.1f"|format(lead.distance_from_search_center) }} miles</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Lead Scoring & Qualification -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-chart-line"></i> Lead Scoring
+                            </h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Lead Score:</strong></td>
+                                    <td>
+                                        <span class="badge badge-{% if lead.lead_score >= 80 %}success{% elif lead.lead_score >= 60 %}warning{% else %}secondary{% endif %}">
+                                            {{ lead.lead_score }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Status:</strong></td>
+                                    <td>
+                                        <span class="badge badge-{% if lead.status.value == 'new' %}primary{% elif lead.status.value == 'contacted' %}info{% elif lead.status.value == 'qualified' %}success{% elif lead.status.value == 'converted' %}success{% else %}secondary{% endif %}">
+                                            {{ lead.status.value.title() }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Source:</strong></td>
+                                    <td>
+                                        <span class="badge badge-light">{{ lead.source.value.replace('_', ' ').title() }}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-dollar-sign"></i> Project Information
+                            </h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Potential Value:</strong></td>
+                                    <td>
+                                        {% if lead.potential_project_value %}
+                                            £{{ "{:,.0f}".format(lead.potential_project_value) }}
+                                        {% else %}
+                                            <span class="text-muted">Not estimated</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Timeline:</strong></td>
+                                    <td>{{ lead.timeline_estimate or 'Not specified' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Qualification Reason:</strong></td>
+                                    <td>{{ lead.qualification_reason or 'Not provided' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- AI Analysis -->
+                    {% if lead.ai_analysis %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-robot"></i> AI Analysis
+                            </h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Confidence Score:</strong> 
+                                                {% if lead.ai_confidence_score %}
+                                                    {{ "%.1f"|format(lead.ai_confidence_score * 100) }}%
+                                                {% else %}
+                                                    Not available
+                                                {% endif %}
+                                            </p>
+                                            <p><strong>Recommendation:</strong> {{ lead.ai_recommendation or 'Not provided' }}</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Analysis Notes:</strong></p>
+                                            <p class="text-muted">{{ lead.ai_notes or 'No additional notes' }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- External Data -->
+                    {% if lead.companies_house_data or lead.linkedin_data %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-database"></i> External Data
+                            </h5>
+                            <div class="row">
+                                {% if lead.companies_house_data %}
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">Companies House Data</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <small class="text-muted">Company registration and financial information</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                {% if lead.linkedin_data %}
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">LinkedIn Data</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <small class="text-muted">Professional network information</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Notes -->
+                    {% if lead.notes %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h5 class="text-primary mb-3">
+                                <i class="fas fa-sticky-note"></i> Notes
+                            </h5>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    {{ lead.notes }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('lead_generation.convert_lead_to_customer', lead_id=lead.id) }}" 
+                           class="btn btn-success">
+                            <i class="fas fa-plus"></i> Convert to Customer
+                        </a>
+                        {% if lead.contact_email %}
+                        <a href="mailto:{{ lead.contact_email }}" class="btn btn-primary">
+                            <i class="fas fa-envelope"></i> Send Email
+                        </a>
+                        {% endif %}
+                        {% if lead.contact_phone %}
+                        <a href="tel:{{ lead.contact_phone }}" class="btn btn-info">
+                            <i class="fas fa-phone"></i> Call
+                        </a>
+                        {% endif %}
+                        {% if lead.website %}
+                        <a href="{{ lead.website }}" target="_blank" class="btn btn-secondary">
+                            <i class="fas fa-external-link-alt"></i> Visit Website
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campaign Information -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Campaign Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Campaign:</strong> 
+                        <a href="{{ url_for('lead_generation.view_campaign', campaign_id=lead.campaign_id) }}">
+                            View Campaign
+                        </a>
+                    </p>
+                    <p><strong>Created:</strong> {{ lead.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                    <p><strong>Last Updated:</strong> {{ lead.updated_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                </div>
+            </div>
+
+            <!-- Follow-up Information -->
+            {% if lead.last_contact_date or lead.next_follow_up_date %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Follow-up Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if lead.last_contact_date %}
+                    <p><strong>Last Contact:</strong> {{ lead.last_contact_date.strftime('%d/%m/%Y') }}</p>
+                    {% endif %}
+                    {% if lead.next_follow_up_date %}
+                    <p><strong>Next Follow-up:</strong> {{ lead.next_follow_up_date.strftime('%d/%m/%Y') }}</p>
+                    {% endif %}
+                    <p><strong>Contact Attempts:</strong> {{ lead.contact_attempts }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Interactions Section -->
+    {% if interactions %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments"></i> Interactions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for interaction in interactions %}
+                    <div class="border-bottom pb-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ interaction.interaction_type.title() }}</h6>
+                                {% if interaction.subject %}
+                                <p class="text-muted mb-1">{{ interaction.subject }}</p>
+                                {% endif %}
+                                <p class="mb-2">{{ interaction.summary }}</p>
+                                {% if interaction.next_steps %}
+                                <p class="text-info mb-1"><strong>Next Steps:</strong> {{ interaction.next_steps }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">{{ interaction.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                                {% if interaction.outcome %}
+                                <br>
+                                <span class="badge badge-{% if interaction.outcome == 'positive' %}success{% elif interaction.outcome == 'negative' %}danger{% else %}secondary{% endif %}">
+                                    {{ interaction.outcome.title() }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

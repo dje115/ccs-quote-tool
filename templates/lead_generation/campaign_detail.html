@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+
+{% block title %}Campaign: {{ campaign.name }} - CCS Quote Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">
+                <i class="fas fa-rocket text-primary"></i> {{ campaign.name }}
+            </h1>
+            <div>
+                {% if campaign.status.value == 'draft' %}
+                    <a href="#" 
+                       class="btn btn-success" id="runCampaignBtn1" onclick="runCampaign({{ campaign.id }}); return false;">
+                        <i class="fas fa-play"></i> Run Campaign
+                    </a>
+                {% elif campaign.status.value == 'running' %}
+                    <span class="badge bg-warning">Running</span>
+                {% elif campaign.status.value == 'completed' %}
+                    <span class="badge bg-success">Completed</span>
+                {% endif %}
+                <a href="{{ url_for('lead_generation.manual_campaign', campaign_id=campaign.id) }}" 
+                   class="btn btn-primary">
+                    <i class="fas fa-user-edit"></i> Manual Generation
+                </a>
+                <a href="{{ url_for('lead_generation.dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Campaign Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Campaign Information</h6>
+                        <p><strong>Name:</strong> {{ campaign.name }}</p>
+                        <p><strong>Description:</strong> {{ campaign.description or 'No description provided' }}</p>
+                        <p><strong>Status:</strong> 
+                            <span class="badge bg-{{ 'success' if campaign.status.value == 'completed' else 'warning' if campaign.status.value == 'running' else 'secondary' }}">
+                                {{ campaign.status.value.title() }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Statistics</h6>
+                        <p><strong>Total Leads Found:</strong> {{ campaign.total_found }}</p>
+                        <p><strong>Leads Created:</strong> {{ campaign.leads_created }}</p>
+                        <p><strong>Duplicates Found:</strong> {{ campaign.duplicates_found }}</p>
+                        <p><strong>Created:</strong> {{ campaign.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h6>AI Prompt Used</h6>
+                <div class="bg-light p-3 rounded">
+                    <pre style="white-space: pre-wrap; font-size: 0.9em; margin: 0;">{{ actual_prompt }}</pre>
+                </div>
+                
+                {% if campaign.parameters %}
+                <h6 class="mt-3">Parameters</h6>
+                <div class="bg-light p-3 rounded">
+                    {% set params = campaign.parameters|from_json %}
+                    <p><strong>Postcode:</strong> {{ params.postcode or 'Not specified' }}</p>
+                    <p><strong>Radius:</strong> {{ params.radius or 'Not specified' }} miles</p>
+                    {% if params.company_name_for_similarity %}
+                    <p><strong>Similar to:</strong> {{ params.company_name_for_similarity }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                {% if campaign.status.value == 'draft' %}
+                    <p class="text-muted">Run this campaign to start generating leads using AI.</p>
+                    <a href="#" 
+                       class="btn btn-success btn-block mb-2" id="runCampaignBtn2" onclick="runCampaign({{ campaign.id }}); return false;">
+                        <i class="fas fa-play"></i> Run Campaign
+                    </a>
+                {% elif campaign.status.value == 'running' %}
+                    <p class="text-info">Campaign is currently running and generating leads.</p>
+                {% elif campaign.status.value == 'completed' %}
+                    <p class="text-success">Campaign completed successfully!</p>
+                    <a href="{{ url_for('lead_generation.run_campaign', campaign_id=campaign.id) }}" 
+                       class="btn btn-primary btn-block mb-2" onclick="return confirm('Run this campaign again?')">
+                        <i class="fas fa-redo"></i> Run Again
+                    </a>
+                {% endif %}
+                
+                <a href="{{ url_for('lead_generation.dashboard') }}" class="btn btn-secondary btn-block">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if leads %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Generated Leads ({{ leads|length }})</h5>
+                <div>
+                    <button class="btn btn-sm btn-primary" onclick="selectAllLeads()">
+                        <i class="fas fa-check-square"></i> Select All
+                    </button>
+                    <button class="btn btn-sm btn-success" onclick="convertSelectedLeads()">
+                        <i class="fas fa-user-plus"></i> Convert Selected
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAllCheckbox" onchange="toggleAllLeads()">
+                                </th>
+                                <th>Company</th>
+                                <th>Contact</th>
+                                <th>Location</th>
+                                <th>Business Sector</th>
+                                <th>Employees</th>
+                                <th>Lead Score</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lead in leads %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="lead-checkbox" value="{{ lead.id }}" 
+                                           data-lead-id="{{ lead.id }}" data-company="{{ lead.company_name }}">
+                                </td>
+                                <td>
+                                    <strong>{{ lead.company_name }}</strong>
+                                    {% if lead.company_registration %}
+                                        <br><small class="text-muted">
+                                            <i class="fas fa-building"></i> {{ lead.company_registration }}
+                                            {% if lead.registration_confirmed %}
+                                                <span class="badge bg-success ms-1">Verified</span>
+                                            {% else %}
+                                                <span class="badge bg-warning ms-1">Unverified</span>
+                                            {% endif %}
+                                        </small>
+                                    {% endif %}
+                                    {% if lead.website %}
+                                        <br><small><a href="{{ lead.website }}" target="_blank" class="text-primary">
+                                            <i class="fas fa-globe"></i> {{ lead.website }}
+                                        </a></small>
+                                    {% else %}
+                                        <br><small class="text-warning">
+                                            <i class="fas fa-exclamation-triangle"></i> <strong>No Website Verified</strong>
+                                        </small>
+                                    {% endif %}
+                                    {% if lead.companies_house_data and lead.companies_house_data.accounts_detail %}
+                                        {% set accounts = lead.companies_house_data.accounts_detail %}
+                                        {% if accounts.company_size %}
+                                            <br><small class="text-info">
+                                                <i class="fas fa-chart-bar"></i> {{ accounts.company_size }}
+                                            </small>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if lead.contact_name %}
+                                        {{ lead.contact_name }}
+                                        {% if lead.contact_email %}
+                                            <br><small>{{ lead.contact_email }}</small>
+                                        {% endif %}
+                                        {% if lead.contact_phone %}
+                                            <br><small>{{ lead.contact_phone }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <em class="text-muted">No contact info</em>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if lead.address %}
+                                        {{ lead.address }}
+                                        {% if lead.postcode %}
+                                            <br><small>{{ lead.postcode }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <em class="text-muted">No address</em>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ lead.business_sector or 'Unknown' }}</span>
+                                </td>
+                                <td>{{ lead.estimated_employees or 'N/A' }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if lead.lead_score >= 70 else 'warning' if lead.lead_score >= 40 else 'secondary' }}">
+                                        {{ lead.lead_score }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if lead.status.value == 'converted' else 'info' if lead.status.value == 'contacted' else 'secondary' }}">
+                                        {{ lead.status.value.title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewLeadDetails({{ lead.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if not lead.is_converted_to_customer %}
+                                            <a href="{{ url_for('lead_generation.convert_lead_to_customer', lead_id=lead.id) }}" 
+                                               class="btn btn-sm btn-success" 
+                                               onclick="return confirm('Convert {{ lead.company_name }} to a CRM customer?')">
+                                                <i class="fas fa-user-plus"></i>
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ url_for('crm.view_customer', customer_id=lead.converted_customer_id) }}" 
+                                               class="btn btn-sm btn-info">
+                                                <i class="fas fa-user"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h5>No Leads Generated Yet</h5>
+                <p class="text-muted">
+                    {% if campaign.status.value == 'draft' %}
+                        This campaign hasn't been run yet. Click "Run Campaign" to start generating leads.
+                    {% else %}
+                        This campaign has been run but no leads were generated. Try adjusting the prompt or parameters.
+                    {% endif %}
+                </p>
+                {% if campaign.status.value == 'draft' %}
+                    <a href="#" 
+                       class="btn btn-primary" id="runCampaignBtn3" onclick="runCampaign({{ campaign.id }}); return false;">
+                        <i class="fas fa-play"></i> Run Campaign Now
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Lead Details Modal -->
+<div class="modal fade" id="leadDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Lead Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="leadDetailsContent">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function selectAllLeads() {
+    const checkboxes = document.querySelectorAll('.lead-checkbox');
+    checkboxes.forEach(checkbox => checkbox.checked = true);
+    document.getElementById('selectAllCheckbox').checked = true;
+}
+
+function toggleAllLeads() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('.lead-checkbox');
+    checkboxes.forEach(checkbox => checkbox.checked = selectAllCheckbox.checked);
+}
+
+function convertSelectedLeads() {
+    const selectedCheckboxes = document.querySelectorAll('.lead-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
+        alert('Please select at least one lead to convert.');
+        return;
+    }
+    
+    const leadIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.leadId);
+    const companyNames = Array.from(selectedCheckboxes).map(cb => cb.dataset.company);
+    
+    if (confirm(`Convert ${companyNames.length} leads to CRM customers?\n\nCompanies: ${companyNames.join(', ')}`)) {
+        // Convert each lead individually
+        leadIds.forEach((leadId, index) => {
+            setTimeout(() => {
+                window.open(`/lead-generation/leads/${leadId}/convert`, '_blank');
+            }, index * 500); // Stagger the opens to avoid popup blocking
+        });
+    }
+}
+
+function viewLeadDetails(leadId) {
+    // For now, just show a simple alert - can be enhanced to show more details
+    alert('Lead details view - to be implemented');
+}
+
+function runCampaign(campaignId) {
+    // Get all run campaign buttons
+    const runButtons = document.querySelectorAll('#runCampaignBtn1, #runCampaignBtn2, #runCampaignBtn3');
+    
+    // Disable all buttons and show loading state
+    runButtons.forEach(button => {
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running Campaign...';
+        button.classList.remove('btn-success', 'btn-primary');
+        button.classList.add('btn-secondary');
+    });
+    
+    // Show a loading message
+    showLoadingMessage();
+    
+    // Make AJAX request to run the campaign
+    fetch(`/lead-generation/campaigns/${campaignId}/run`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            throw new Error('Network response was not ok');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            showSuccessMessage(data.message || 'Campaign started successfully!');
+            
+            // Update campaign status to running
+            updateCampaignStatus('running');
+            
+            // Auto-refresh the page after 2 seconds to show updated status
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Campaign failed to start');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        
+        // Re-enable buttons and show error
+        runButtons.forEach(button => {
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-play"></i> Run Campaign';
+            button.classList.remove('btn-secondary');
+            button.classList.add('btn-success');
+        });
+        
+        showErrorMessage(error.message || 'Failed to start campaign. Please try again.');
+    });
+}
+
+function showLoadingMessage() {
+    // Create or update loading message
+    let loadingDiv = document.getElementById('loadingMessage');
+    if (!loadingDiv) {
+        loadingDiv = document.createElement('div');
+        loadingDiv.id = 'loadingMessage';
+        loadingDiv.className = 'alert alert-info text-center mt-3';
+        loadingDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Starting campaign and generating leads with AI...';
+        document.querySelector('.row').appendChild(loadingDiv);
+    }
+}
+
+function showSuccessMessage(message) {
+    // Remove loading message
+    const loadingDiv = document.getElementById('loadingMessage');
+    if (loadingDiv) {
+        loadingDiv.remove();
+    }
+    
+    // Create success message
+    const successDiv = document.createElement('div');
+    successDiv.className = 'alert alert-success text-center mt-3';
+    successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+    document.querySelector('.row').appendChild(successDiv);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        successDiv.remove();
+    }, 5000);
+}
+
+function showErrorMessage(message) {
+    // Remove loading message
+    const loadingDiv = document.getElementById('loadingMessage');
+    if (loadingDiv) {
+        loadingDiv.remove();
+    }
+    
+    // Create error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'alert alert-danger text-center mt-3';
+    errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+    document.querySelector('.row').appendChild(errorDiv);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 5000);
+}
+
+function updateCampaignStatus(status) {
+    // Update status badge
+    const statusBadge = document.querySelector('.badge');
+    if (statusBadge) {
+        statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        statusBadge.className = status === 'running' ? 'badge bg-warning' : 'badge bg-secondary';
+    }
+}
+
+// Auto-refresh every 30 seconds if campaign is running
+{% if campaign.status.value == 'running' %}
+setInterval(() => {
+    location.reload();
+}, 30000);
+{% endif %}
+</script>
+{% endblock %}

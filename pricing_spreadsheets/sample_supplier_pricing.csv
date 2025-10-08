@@ -1,0 +1,35 @@
+Product,Category,Description,Unit Price,Supplier,Part Number,Notes
+Cat5e Cable - 305m,Cabling,UTP Cat5e Ethernet Cable 305m Box,Meter,0.85,CommScope,CS-305-5E,Standard installation cable
+Cat6 Cable - 305m,Cabling,UTP Cat6 Ethernet Cable 305m Box,Meter,1.25,CommScope,CS-305-6,Enhanced performance
+Cat6a Cable - 305m,Cabling,UTP Cat6a Ethernet Cable 305m Box,Meter,2.10,CommScope,CS-305-6A,10Gbps capable
+Fiber Optic - OM3,Cabling,Multimode Fiber OM3 12 Core,Meter,8.50,Corning,OM3-12C,High speed backbone
+Fiber Optic - OS2,Cabling,Singlemode Fiber OS2 12 Core,Meter,12.75,Corning,OS2-12C,Long distance
+UniFi U6 Pro,WiFi,WiFi 6 Access Point,Piece,149.99,Ubiquiti,U6-PRO,AX3000 performance
+UniFi U6 Lite,WiFi,WiFi 6 Access Point,Piece,89.99,Ubiquiti,U6-LITE,AX1500 performance
+UniFi Dream Machine,WiFi,All-in-one Router/Gateway,Piece,299.99,Ubiquiti,UDM,Integrated controller
+UniFi G4 Pro,CCTV,4MP Security Camera,Piece,449.99,Ubiquiti,UVC-G4-PRO,Professional surveillance
+UniFi G3 Flex,CCTV,1080p Security Camera,Piece,79.99,Ubiquiti,UVC-G3-FLEX,Compact design
+UniFi NVR,CCTV,Network Video Recorder,Piece,199.99,Ubiquiti,UNVR,4-bay storage
+Net2 Entry Plus,Door Entry,2-door Access Control,Piece,399.99,Paxton,NET2-EP2,Standard entry system
+Net2 Entry Pro,Door Entry,4-door Access Control,Piece,599.99,Paxton,NET2-EP4,Advanced features
+Net2 Reader,Door Entry,Proximity Card Reader,Piece,89.99,Paxton,NET2-RD,Card access
+Installation Labor,Labor,Data Cable Installation,Hour,45.00,Internal,LABOR-CABLE,Qualified technician
+WiFi Installation,Labor,Access Point Installation,Hour,55.00,Internal,LABOR-WIFI,Network configuration
+CCTV Installation,Labor,Camera Installation,Hour,65.00,Internal,LABOR-CCTV,Professional setup
+Door Entry Installation,Labor,Access Control Setup,Hour,75.00,Internal,LABOR-DOOR,Specialized installation
+Network Switch - 24 Port,Networking,Managed 24-Port Gigabit Switch,Piece,199.99,Netgear,GS724T,Managed switch
+Network Switch - 48 Port,Networking,Managed 48-Port Gigabit Switch,Piece,349.99,Netgear,GS748T,High density
+Patch Panel - 24 Port,Networking,24-Port Cat6 Patch Panel,Piece,45.99,CommScope,PP-24-6,Standard rack mount
+Patch Panel - 48 Port,Networking,48-Port Cat6 Patch Panel,Piece,79.99,CommScope,PP-48-6,High density
+Rack Cabinet - 19" 42U,Networking,42U Server Rack Cabinet,Piece,299.99,APC,AR-42U,Standard rack
+Rack Cabinet - 19" 24U,Networking,24U Server Rack Cabinet,Piece,199.99,APC,AR-24U,Compact rack
+RJ45 Connectors,Networking,Cat6 RJ45 Connectors,Pack,24.99,CommScope,RJ45-C6,100 pack
+Cable Tester,Networking,Network Cable Tester,Piece,89.99,Fluke,NT-1000,Professional testing
+Punch Down Tool,Networking,110 Punch Down Tool,Piece,29.99,Krone,PD-110,Termination tool
+Cable Puller,Networking,Cable Pulling Tool,Piece,45.99,Greenlee,CP-100,Installation aid
+Cable Tray - 100mm,Networking,Cable Management Tray,Meter,12.99,Panduit,CT-100,Standard tray
+Cable Tray - 150mm,Networking,Cable Management Tray,Meter,18.99,Panduit,CT-150,Wide tray
+Conduit - 20mm,Networking,Electrical Conduit,Meter,2.99,PolyPipe,COND-20,Protection conduit
+Conduit - 25mm,Networking,Electrical Conduit,Meter,3.49,PolyPipe,COND-25,Standard conduit
+
+

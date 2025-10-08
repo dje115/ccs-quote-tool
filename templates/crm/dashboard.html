@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}CRM Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-users text-primary"></i> Customer Relationship Management</h2>
+                <div>
+                    <a href="{{ url_for('crm.list_customers') }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-list"></i> All Customers
+                    </a>
+                    <a href="{{ url_for('crm.create_customer') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> New Customer
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4 class="card-title" id="total-customers">-</h4>
+                    <p class="card-text small">Total Customers</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4 class="card-title" id="active-customers">-</h4>
+                    <p class="card-text small">Active Customers</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4 class="card-title" id="prospects">-</h4>
+                    <p class="card-text small">Prospects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4 class="card-title" id="recent-interactions">-</h4>
+                    <p class="card-text small">Recent Interactions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h4 class="card-title" id="follow-ups-needed">-</h4>
+                    <p class="card-text small">Follow-ups Needed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h4 class="card-title" id="high-value-prospects">-</h4>
+                    <p class="card-text small">High-Value Prospects</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt"></i> Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('crm.create_customer') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-plus"></i> Add Customer
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-success w-100" onclick="runAiAnalysis()">
+                                <i class="fas fa-robot"></i> AI Analysis
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('crm.list_customers') }}?status=prospect" class="btn btn-warning w-100">
+                                <i class="fas fa-eye"></i> View Prospects
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-info w-100" onclick="viewFollowUps()">
+                                <i class="fas fa-calendar-check"></i> Follow-ups
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sector Breakdown -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie"></i> Customers by Sector
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="sectorChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-search"></i> Customer Search
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" id="customerSearch" placeholder="Search customers...">
+                        <button class="btn btn-outline-secondary" type="button" onclick="searchCustomers()">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div id="searchResults"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history"></i> Recent Customer Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Activity</th>
+                                    <th>Contact</th>
+                                    <th>Date</th>
+                                    <th>Follow-up</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentActivityTable">
+                                <!-- Activity data will be loaded via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+    loadRecentActivity();
+});
+
+// Load all dashboard data with a single API call
+function loadDashboardData() {
+    fetch('/crm/dashboard/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadDashboardStats(data.stats);
+                loadSectorChart(data.stats);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading dashboard data:', error);
+        });
+}
+
+function loadDashboardStats(stats) {
+    // Update dashboard stats cards
+    document.getElementById('total-customers').textContent = stats.total_customers;
+    document.getElementById('active-customers').textContent = stats.active_customers;
+    document.getElementById('prospects').textContent = stats.prospects;
+    document.getElementById('recent-interactions').textContent = stats.recent_interactions;
+    document.getElementById('follow-ups-needed').textContent = stats.follow_ups_needed;
+    document.getElementById('high-value-prospects').textContent = stats.high_value_prospects;
+}
+
+// Global chart instance to prevent multiple charts
+let sectorChartInstance = null;
+
+function loadSectorChart(stats) {
+    const sectorData = stats.sector_breakdown;
+    const ctx = document.getElementById('sectorChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (sectorChartInstance) {
+        sectorChartInstance.destroy();
+        sectorChartInstance = null;
+    }
+    
+    // Create new chart instance
+    sectorChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(sectorData),
+            datasets: [{
+                data: Object.values(sectorData),
+                backgroundColor: [
+                    '#FF6384',
+                    '#36A2EB',
+                    '#FFCE56',
+                    '#4BC0C0',
+                    '#9966FF',
+                    '#FF9F40',
+                    '#FF6384',
+                    '#C9CBCF'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 1000,
+                easing: 'easeInOutQuart'
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function loadRecentActivity() {
+    // This would load recent customer interactions
+    // For now, showing placeholder
+    const tbody = document.getElementById('recentActivityTable');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5" class="text-center text-muted">
+                <i class="fas fa-info-circle"></i> Recent activity will be displayed here
+            </td>
+        </tr>
+    `;
+}
+
+function searchCustomers() {
+    const query = document.getElementById('customerSearch').value;
+    if (query.length < 2) {
+        document.getElementById('searchResults').innerHTML = '';
+        return;
+    }
+    
+    fetch(`/crm/customers/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            const resultsDiv = document.getElementById('searchResults');
+            if (data.customers.length > 0) {
+                let html = '<div class="list-group">';
+                data.customers.forEach(customer => {
+                    html += `
+                        <a href="/crm/customer/${customer.id}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${customer.name}</h6>
+                                <span class="badge bg-${customer.status === 'active' ? 'success' : 'warning'}">${customer.status}</span>
+                            </div>
+                            <p class="mb-1">${customer.business_sector || 'Unknown sector'}</p>
+                            <small>Lead Score: ${customer.lead_score || 'N/A'}</small>
+                        </a>
+                    `;
+                });
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+            } else {
+                resultsDiv.innerHTML = '<p class="text-muted">No customers found</p>';
+            }
+        })
+        .catch(error => {
+            console.error('Error searching customers:', error);
+        });
+}
+
+function runAiAnalysis() {
+    alert('AI Analysis feature - This would run AI analysis on customers that need it');
+}
+
+function viewFollowUps() {
+    window.location.href = '/crm/customers?follow_up=true';
+}
+
+// Search on input
+document.getElementById('customerSearch').addEventListener('input', function() {
+    if (this.value.length >= 2) {
+        searchCustomers();
+    } else {
+        document.getElementById('searchResults').innerHTML = '';
+    }
+});
+</script>
+{% endblock %}

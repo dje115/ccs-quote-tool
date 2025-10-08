@@ -1,0 +1,27 @@
+Category,Subcategory,Product Name,Description,Unit,Cost Per Unit,Supplier,Part Number
+cabling,cable,Cat6 Cable,UTP Cat6 Cable per meter,meter,0.45,Generic,CAT6-UTP
+cabling,cable,Cat5e Cable,UTP Cat5e Cable per meter,meter,0.35,Generic,CAT5E-UTP
+cabling,cable,Fiber Cable,Single Mode Fiber per meter,meter,1.80,Generic,SM-FIBER
+cabling,accessories,Network Point,Complete network point with faceplate and module,point,25.00,Generic,NET-POINT
+cabling,accessories,Patch Panel,24 Port Patch Panel,piece,120.00,Generic,PATCH-24
+cabling,accessories,Network Switch,24 Port Gigabit Switch,piece,250.00,Generic,SW-24G
+wifi,access_points,UniFi WiFi 6 Access Point,U6-Pro WiFi 6 Access Point,piece,150.00,Ubiquiti,U6-Pro
+wifi,access_points,UniFi WiFi 6 Lite,U6-Lite WiFi 6 Access Point,piece,80.00,Ubiquiti,U6-Lite
+wifi,controllers,UniFi Dream Machine,UDM Pro Router/Firewall,piece,350.00,Ubiquiti,UDM-Pro
+wifi,controllers,UniFi Dream Router,UDR All-in-One Router,piece,200.00,Ubiquiti,UDR
+wifi,accessories,PoE Injector,24V Passive PoE Injector,piece,25.00,Ubiquiti,POE-24V
+cctv,cameras,UniFi Camera G4,4MP Bullet Camera,piece,200.00,Ubiquiti,G4-Bullet
+cctv,cameras,UniFi Camera G4 Pro,4MP Pro Bullet Camera,piece,350.00,Ubiquiti,G4-Pro
+cctv,cameras,UniFi Doorbell,Smart Doorbell Camera,piece,150.00,Ubiquiti,G4-Doorbell
+cctv,storage,UniFi NVR,Network Video Recorder,piece,400.00,Ubiquiti,NVR
+cctv,accessories,Camera Mount,Wall/Pole Mount for Cameras,piece,30.00,Ubiquiti,MOUNT
+door_entry,controllers,Paxton Net2 Controller,Net2 Entry Controller,piece,800.00,Paxton,NET2-CTRL
+door_entry,readers,Paxton Net2 Reader,Proximity Card Reader,piece,150.00,Paxton,NET2-RDR
+door_entry,accessories,Paxton Net2 Software,Net2 Software License,piece,200.00,Paxton,NET2-SW
+door_entry,accessories,Door Controller,Electronic Door Controller,piece,200.00,Generic,DOOR-CTRL
+labor,installation,Cabling Installation,Installation of data cabling per hour,hour,75.00,CCS,LAB-CABLE
+labor,installation,WiFi Installation,WiFi system installation per hour,hour,75.00,CCS,LAB-WIFI
+labor,installation,CCTV Installation,CCTV system installation per hour,hour,75.00,CCS,LAB-CCTV
+labor,installation,Door Entry Installation,Door entry system installation per hour,hour,75.00,CCS,LAB-DOOR
+labor,testing,System Testing,System testing and commissioning per hour,hour,75.00,CCS,LAB-TEST
+labor,training,User Training,End user training per hour,hour,100.00,CCS,LAB-TRAIN

@@ -1,0 +1,940 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.company_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ customer.company_name }}</h2>
+                <div>
+                    <a href="{{ url_for('crm.edit_customer', customer_id=customer.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <button class="btn btn-info" onclick="analyzeCustomer()">
+                        <i class="fas fa-robot"></i> AI Analysis
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Basic Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                        <p><strong>Website:</strong> 
+                            {% if customer.website %}
+                            <a href="{{ customer.website }}" target="_blank">{{ customer.website }} <i class="fas fa-external-link-alt"></i></a>
+                            {% else %}
+                            <span class="text-muted">Not provided</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Company Registration:</strong> 
+                            {% if customer.company_registration %}
+                            <span class="badge {% if customer.registration_confirmed %}bg-success{% else %}bg-warning{% endif %}">{{ customer.company_registration }}</span>
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="registration_confirmed" 
+                                       {% if customer.registration_confirmed %}checked{% endif %}
+                                       onchange="toggleRegistrationConfirmation(this)">
+                                <label class="form-check-label" for="registration_confirmed">
+                                    <small class="text-muted">Confirmed by human</small>
+                                </label>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">Not provided</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Phone:</strong> {{ customer.main_phone or 'Not provided' }}</p>
+                        <p><strong>Email:</strong> {{ customer.main_email or 'Not provided' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Status:</strong> 
+                                <span class="badge {% if customer.status.value == 'active' %}bg-success{% elif customer.status.value == 'lead' %}bg-primary{% elif customer.status.value == 'prospect' %}bg-info{% elif customer.status.value == 'inactive' %}bg-warning{% else %}bg-secondary{% endif %}" id="status-badge">
+                                    {{ customer.status.value.title() }}
+                                </span>
+                                <button class="btn btn-sm btn-outline-secondary ms-2" onclick="showStatusChangeModal()">
+                                    <i class="fas fa-edit"></i> Change
+                                </button>
+                            </p>
+                            <p><strong>Created:</strong> {{ customer.created_at.strftime('%Y-%m-%d') }}</p>
+                            <p><strong>Updated:</strong> {{ customer.updated_at.strftime('%Y-%m-%d') }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Address Information -->
+                    <div class="mt-3">
+                        <h6><i class="fas fa-map-marker-alt text-primary"></i> Address Information</h6>
+                        
+                        {% if customer.billing_address %}
+                        <div class="mb-2">
+                            <strong>Billing Address:</strong><br>
+                            <span class="text-muted">{{ customer.billing_address }}</span>
+                            {% if customer.billing_postcode %}
+                            <br><span class="text-muted">{{ customer.billing_postcode }}</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if customer.shipping_address %}
+                        <div class="mb-2">
+                            <strong>Shipping Address:</strong><br>
+                            <span class="text-muted">{{ customer.shipping_address }}</span>
+                            {% if customer.shipping_postcode %}
+                            <br><span class="text-muted">{{ customer.shipping_postcode }}</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if not customer.billing_address and not customer.shipping_address %}
+                        <p class="text-muted">No address information available</p>
+                        {% endif %}
+                        
+                        <!-- AI-Generated Address Analysis -->
+                        {% if customer.primary_address or customer.additional_sites or customer.location_analysis %}
+                        <div class="mt-3 pt-3 border-top">
+                            <h6><i class="fas fa-robot text-info"></i> AI Address Analysis</h6>
+                            
+                            {% if customer.primary_address %}
+                            <div class="mb-2">
+                                <strong>Primary Business Address:</strong><br>
+                                <span class="text-muted">{{ customer.primary_address }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if customer.additional_sites %}
+                            <div class="mb-2">
+                                <strong>Additional Sites:</strong><br>
+                                <span class="text-muted">{{ customer.additional_sites }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if customer.location_analysis %}
+                            <div class="mb-2">
+                                <strong>Location Analysis:</strong><br>
+                                <span class="text-muted">{{ customer.location_analysis }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if customer.description %}
+                    <p><strong>Description:</strong><br>{{ customer.description }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- AI Business Intelligence -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Business Intelligence</h5>
+                    {% if not customer.ai_analysis_raw %}
+                    <small class="text-muted">Click AI Analysis to populate this data</small>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if customer.ai_analysis_raw %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Business Sector:</strong> 
+                                {% if customer.business_sector %}
+                                <span class="badge bg-info">{{ customer.business_sector.value }}</span>
+                                {% else %}
+                                <span class="text-muted">Not analyzed</span>
+                                {% endif %}
+                            </p>
+                            <p><strong>Company Size:</strong> {{ customer.business_size_category or 'Not analyzed' }}</p>
+                            <p><strong>Technology Maturity:</strong> {{ customer.technology_maturity or 'Not analyzed' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>IT Budget Estimate:</strong> 
+                                {% if customer.it_budget_estimate %}
+                                {{ customer.it_budget_estimate }}
+                                {% else %}
+                                <span class="text-muted">Not analyzed</span>
+                                {% endif %}
+                            </p>
+                            <p><strong>Growth Potential:</strong> 
+                                {% if customer.growth_potential %}
+                                <span class="badge {% if customer.growth_potential == 'High' %}bg-success{% elif customer.growth_potential == 'Medium' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ customer.growth_potential }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">Not analyzed</span>
+                                {% endif %}
+                            </p>
+                            <p><strong>Lead Score:</strong> 
+                                {% if customer.lead_score > 0 %}
+                                <span class="badge {% if customer.lead_score >= 70 %}bg-success{% elif customer.lead_score >= 40 %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ customer.lead_score }}/100
+                                </span>
+                                {% else %}
+                                <span class="text-muted">Not analyzed</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional AI Insights -->
+                    {% if customer.ai_company_profile %}
+                    <div class="mt-4">
+                        <h6><i class="fas fa-brain text-info"></i> AI Company Profile</h6>
+                        <p class="text-muted">{{ customer.ai_company_profile }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if customer.ai_technology_needs %}
+                    <div class="mt-3">
+                        <h6><i class="fas fa-cogs text-primary"></i> Technology Needs</h6>
+                        <p class="text-muted">{{ customer.ai_technology_needs }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if customer.ai_opportunities %}
+                    <div class="mt-3">
+                        <h6><i class="fas fa-lightbulb text-success"></i> Opportunities</h6>
+                        <p class="text-muted">{{ customer.ai_opportunities }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if customer.ai_competitors %}
+                    <div class="mt-3">
+                        <h6><i class="fas fa-users text-warning"></i> Competitors</h6>
+                        <p class="text-muted">{{ customer.ai_competitors }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if customer.ai_risks %}
+                    <div class="mt-3">
+                        <h6><i class="fas fa-exclamation-triangle text-danger"></i> Risk Factors</h6>
+                        <p class="text-muted">{{ customer.ai_risks }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Active Directors -->
+                    {% if customer.companies_house_data %}
+                    {% set ch_data = customer.companies_house_data|from_json %}
+                    {% if ch_data.get('accounts_detail') and ch_data['accounts_detail'].get('active_directors') %}
+                    <div class="mt-4 pt-3 border-top">
+                        <h6><i class="fas fa-users text-primary"></i> Active Directors/Officers ({{ ch_data['accounts_detail'].get('total_active_directors', ch_data['accounts_detail']['active_directors']|length) }})</h6>
+                        
+                        <div class="row">
+                            {% for director in ch_data['accounts_detail']['active_directors'][:6] %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h6 class="card-title mb-1">{{ director.name }}</h6>
+                                        {% if director.role %}
+                                        <p class="mb-1"><span class="badge bg-secondary">{{ director.role }}</span></p>
+                                        {% endif %}
+                                        
+                                        <div class="small text-muted">
+                                            {% if director.occupation %}
+                                            <p class="mb-1"><i class="fas fa-briefcase"></i> {{ director.occupation }}</p>
+                                            {% endif %}
+                                            
+                                            {% if director.appointed_on %}
+                                            <p class="mb-1"><i class="fas fa-calendar"></i> Appointed: {{ director.appointed_on }}</p>
+                                            {% endif %}
+                                            
+                                            {% if director.nationality %}
+                                            <p class="mb-1"><i class="fas fa-flag"></i> {{ director.nationality }}</p>
+                                            {% endif %}
+                                            
+                                            {% if director.date_of_birth %}
+                                            <p class="mb-1"><i class="fas fa-birthday-cake"></i> Born {{ director.date_of_birth }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if ch_data['accounts_detail']['active_directors']|length > 6 %}
+                        <button class="btn btn-sm btn-outline-info" onclick="showAllDirectors()">
+                            <i class="fas fa-eye"></i> View All {{ ch_data['accounts_detail'].get('total_active_directors', ch_data['accounts_detail']['active_directors']|length) }} Directors
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    
+                    <!-- External Data Sources -->
+                    {% if customer.linkedin_url or customer.linkedin_data or customer.companies_house_data or customer.website_data %}
+                    <div class="mt-4 pt-3 border-top">
+                        <h6><i class="fas fa-external-link-alt text-primary"></i> External Data Sources</h6>
+                        
+                        {% if customer.linkedin_url %}
+                        <div class="mb-2">
+                            <strong>LinkedIn:</strong> 
+                            <a href="{{ customer.linkedin_url }}" target="_blank" class="text-decoration-none">
+                                {{ customer.linkedin_url }} <i class="fas fa-external-link-alt small"></i>
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if customer.companies_house_data %}
+                        <div class="mb-2">
+                            <strong>Companies House:</strong> 
+                            <span class="text-success">Data available</span>
+                            <button class="btn btn-sm btn-outline-info ms-2" onclick="showCompaniesHouseData()">
+                                <i class="fas fa-eye"></i> View Details
+                            </button>
+                        </div>
+                        {% endif %}
+                        
+                        {% if customer.website_data %}
+                        <div class="mb-2">
+                            <strong>Website Analysis:</strong> 
+                            <span class="text-success">Data available</span>
+                            <button class="btn btn-sm btn-outline-info ms-2" onclick="showWebsiteData()">
+                                <i class="fas fa-eye"></i> View Details
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-robot fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No AI analysis performed yet</p>
+                        <button class="btn btn-info" onclick="analyzeCustomer()">
+                            <i class="fas fa-robot"></i> Analyze with AI
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Contacts -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Contacts ({{ contacts|length }})</h5>
+                    <a href="{{ url_for('crm.new_contact', id=customer.id) }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> Add Contact
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if contacts %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Role</th>
+                                    <th>Email Addresses</th>
+                                    <th>Phone Numbers</th>
+                                    <th>Primary</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contact in contacts %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ contact.first_name }} {{ contact.last_name }}</strong>
+                                        {% if contact.job_title %}
+                                        <br><small class="text-muted">{{ contact.job_title }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ contact.role.value }}</td>
+                                    <td>
+                                        {% if contact.email %}
+                                        <div>
+                                            <strong>Primary:</strong> {{ contact.email }}
+                                            {% if contact.primary_email == 'primary' %}<span class="badge bg-success small">Preferred</span>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                        {% if contact.email_secondary %}
+                                        <div>
+                                            <strong>Secondary:</strong> {{ contact.email_secondary }}
+                                            {% if contact.primary_email == 'secondary' %}<span class="badge bg-success small">Preferred</span>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                        {% if not contact.email and not contact.email_secondary %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if contact.phone %}
+                                        <div>
+                                            <strong>Primary:</strong> {{ contact.phone }}
+                                            {% if contact.primary_phone == 'primary' %}<span class="badge bg-success small">Preferred</span>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                        {% if contact.phone_secondary %}
+                                        <div>
+                                            <strong>Secondary:</strong> {{ contact.phone_secondary }}
+                                            {% if contact.primary_phone == 'secondary' %}<span class="badge bg-success small">Preferred</span>{% endif %}
+                                        </div>
+                                        {% endif %}
+                                        {% if not contact.phone and not contact.phone_secondary %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if contact.is_primary %}
+                                        <span class="badge bg-primary">Primary Contact</span>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('crm.edit_contact', customer_id=customer.id, contact_id=contact.id) }}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-user-plus fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No contacts added yet</p>
+                        <a href="{{ url_for('crm.new_contact', id=customer.id) }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add First Contact
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Quotes -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Related Quotes ({{ quotes|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if quotes %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Quote Number</th>
+                                    <th>Project Title</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for quote in quotes %}
+                                <tr>
+                                    <td>{{ quote.quote_number }}</td>
+                                    <td>{{ quote.project_title }}</td>
+                                    <td>
+                                        <span class="badge {% if quote.status == 'accepted' %}bg-success{% elif quote.status == 'sent' %}bg-primary{% elif quote.status == 'declined' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                            {{ quote.status.title() }}
+                                        </span>
+                                    </td>
+                                    <td>{{ quote.created_at.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <a href="{{ url_for('main.view_quote', quote_id=quote.id) }}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-file-invoice fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No quotes created for this customer yet</p>
+                        <a href="{{ url_for('main.create_quote') }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Create Quote
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Interactions -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Recent Interactions</h5>
+                    <!-- Interaction logging will be implemented later -->
+                </div>
+                <div class="card-body">
+                    {% if interactions %}
+                    {% for interaction in interactions[:5] %}
+                    <div class="mb-3 pb-3 {% if not loop.last %}border-bottom{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <strong>{{ interaction.interaction_type }}</strong>
+                            <small class="text-muted">{{ interaction.created_at.strftime('%m/%d') }}</small>
+                        </div>
+                        <p class="mb-1 small">{{ interaction.summary }}</p>
+                        {% if interaction.outcome %}
+                        <small class="text-muted">Outcome: {{ interaction.outcome }}</small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-comments fa-2x text-muted mb-2"></i>
+                        <p class="text-muted small">No interactions recorded</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h5>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('main.create_quote') }}?customer_id={{ customer.id }}" class="btn btn-primary">
+                            <i class="fas fa-file-invoice"></i> Create Quote
+                        </a>
+                        <a href="{{ url_for('crm.new_contact', id=customer.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-user-plus"></i> Add Contact
+                        </a>
+                        <!-- Interaction logging will be implemented later -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function analyzeCustomer() {
+    if (confirm('This will use AI to analyze the company and update business intelligence fields. Continue?')) {
+        // Show loading state
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        button.disabled = true;
+        fetch(`/crm/customers/{{ customer.id }}/ai-analysis`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+                    console.log('Response data:', data);
+                    if (data.success) {
+                        // Check if AI found a company registration number
+                        if (data.newly_found_company_registration) {
+                            showRegistrationConfirmation(data.newly_found_company_registration);
+                        } else {
+                            alert('AI analysis completed successfully!');
+                            location.reload();
+                        }
+                    } else {
+                        alert('AI analysis failed: ' + (data.error || data.message || 'Unknown error'));
+                        // Restore button state
+                        button.innerHTML = originalText;
+                        button.disabled = false;
+                    }
+                })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error during AI analysis: ' + error.message);
+            // Restore button state
+            button.innerHTML = originalText;
+            button.disabled = false;
+        });
+    }
+}
+
+function showAllDirectors() {
+    {% if customer.companies_house_data %}
+    const data = JSON.parse('{{ customer.companies_house_data|safe }}');
+    
+    if (data.accounts_detail && data.accounts_detail.active_directors) {
+        const directors = data.accounts_detail.active_directors;
+        
+        let content = '<div class="directors-list">';
+        content += `<h6><i class="fas fa-users"></i> All Active Directors (${directors.length})</h6>`;
+        
+        directors.forEach((director, index) => {
+            content += `<div class="card mb-2">`;
+            content += `<div class="card-body">`;
+            content += `<h6 class="card-title">${index + 1}. ${director.name || 'Unknown'}</h6>`;
+            
+            if (director.role) {
+                content += `<p class="mb-1"><span class="badge bg-secondary">${director.role}</span></p>`;
+            }
+            
+            content += `<div class="row">`;
+            content += `<div class="col-md-6">`;
+            
+            if (director.occupation) {
+                content += `<p class="mb-1 small text-muted"><i class="fas fa-briefcase"></i> ${director.occupation}</p>`;
+            }
+            if (director.appointed_on) {
+                content += `<p class="mb-1 small text-muted"><i class="fas fa-calendar"></i> Appointed: ${director.appointed_on}</p>`;
+            }
+            if (director.nationality) {
+                content += `<p class="mb-1 small text-muted"><i class="fas fa-flag"></i> ${director.nationality}</p>`;
+            }
+            
+            content += `</div><div class="col-md-6">`;
+            
+            if (director.country_of_residence) {
+                content += `<p class="mb-1 small text-muted"><i class="fas fa-home"></i> Residence: ${director.country_of_residence}</p>`;
+            }
+            if (director.date_of_birth) {
+                content += `<p class="mb-1 small text-muted"><i class="fas fa-birthday-cake"></i> Born ${director.date_of_birth}</p>`;
+            }
+            if (director.address) {
+                content += `<p class="mb-1 small text-muted"><i class="fas fa-map-marker-alt"></i> ${director.address}</p>`;
+            }
+            
+            content += `</div></div>`;
+            content += `</div></div>`;
+        });
+        
+        content += '</div>';
+        
+        showModal('Active Directors & Officers', content);
+    }
+    {% endif %}
+}
+
+function showCompaniesHouseData() {
+    {% if customer.companies_house_data %}
+    const data = JSON.parse('{{ customer.companies_house_data|safe }}');
+    
+    let content = '<div class="companies-house-data">';
+    content += '<h6><i class="fas fa-building"></i> Companies House Information</h6>';
+    
+    if (data.company_number) {
+        content += `<p><strong>Company Number:</strong> ${data.company_number}</p>`;
+    }
+    if (data.company_status) {
+        content += `<p><strong>Status:</strong> <span class="badge bg-info">${data.company_status}</span></p>`;
+    }
+    if (data.company_type) {
+        content += `<p><strong>Type:</strong> ${data.company_type}</p>`;
+    }
+    if (data.date_of_creation) {
+        content += `<p><strong>Founded:</strong> ${data.date_of_creation}</p>`;
+    }
+    if (data.registered_office_address) {
+        content += `<p><strong>Registered Address:</strong><br>`;
+        if (typeof data.registered_office_address === 'object') {
+            content += `${data.registered_office_address.address_line_1 || ''}<br>`;
+            content += `${data.registered_office_address.locality || ''}<br>`;
+            content += `${data.registered_office_address.postal_code || ''}`;
+        } else {
+            content += data.registered_office_address;
+        }
+        content += '</p>';
+    }
+    if (data.sic_codes && data.sic_codes.length > 0) {
+        content += '<p><strong>SIC Codes:</strong><br>';
+        data.sic_codes.forEach(sic => {
+            content += `${sic.sic_code}: ${sic.description}<br>`;
+        });
+        content += '</p>';
+    }
+    
+    content += '</div>';
+    
+    showModal('Companies House Data', content);
+    {% endif %}
+}
+
+function showWebsiteData() {
+    {% if customer.website_data %}
+    const data = JSON.parse('{{ customer.website_data|safe }}');
+    
+    let content = '<div class="website-data">';
+    content += '<h6><i class="fas fa-globe"></i> Website Analysis</h6>';
+    
+    if (data.website_title) {
+        content += `<p><strong>Website Title:</strong> ${data.website_title}</p>`;
+    }
+    if (data.website_description) {
+        content += `<p><strong>Description:</strong> ${data.website_description}</p>`;
+    }
+    if (data.contact_info && data.contact_info.length > 0) {
+        content += '<p><strong>Contact Information Found:</strong><br>';
+        data.contact_info.forEach(contact => {
+            content += `${contact}<br>`;
+        });
+        content += '</p>';
+    }
+    if (data.social_media && data.social_media.length > 0) {
+        content += '<p><strong>Social Media Links:</strong><br>';
+        data.social_media.forEach(link => {
+            content += `<a href="${link}" target="_blank">${link}</a><br>`;
+        });
+        content += '</p>';
+    }
+    if (data.key_phrases && data.key_phrases.length > 0) {
+        content += '<p><strong>Key Phrases:</strong><br>';
+        content += data.key_phrases.slice(0, 15).map(phrase => phrase[0]).join(', ');
+        content += '</p>';
+    }
+    
+    content += '</div>';
+    
+    showModal('Website Analysis', content);
+    {% endif %}
+}
+
+function showModal(title, content) {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">${title}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    ${content}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // Clean up modal when hidden
+    modal.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
+    });
+}
+
+function showStatusChangeModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Change Customer Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="statusChangeForm">
+                        <div class="mb-3">
+                            <label for="new_status" class="form-label">New Status</label>
+                            <select class="form-select" id="new_status" name="status" required>
+                                <option value="lead" {% if customer.status.value == 'lead' %}selected{% endif %}>Lead</option>
+                                <option value="prospect" {% if customer.status.value == 'prospect' %}selected{% endif %}>Prospect</option>
+                                <option value="active" {% if customer.status.value == 'active' %}selected{% endif %}>Active Customer</option>
+                                <option value="inactive" {% if customer.status.value == 'inactive' %}selected{% endif %}>Inactive</option>
+                                <option value="former" {% if customer.status.value == 'former' %}selected{% endif %}>Former Customer</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="status_notes" class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="status_notes" name="notes" rows="3" placeholder="Add notes about this status change..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="changeCustomerStatus()">Change Status</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // Clean up modal when hidden
+    modal.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
+    });
+}
+
+function changeCustomerStatus() {
+    const newStatus = document.getElementById('new_status').value;
+    const notes = document.getElementById('status_notes').value;
+    
+    const data = {
+        status: newStatus,
+        notes: notes
+    };
+    
+    fetch(`/crm/customers/{{ customer.id }}/change-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the status badge
+            const statusBadge = document.getElementById('status-badge');
+            statusBadge.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+            
+            // Update badge color
+            statusBadge.className = 'badge';
+            if (newStatus === 'active') {
+                statusBadge.classList.add('bg-success');
+            } else if (newStatus === 'lead') {
+                statusBadge.classList.add('bg-primary');
+            } else if (newStatus === 'prospect') {
+                statusBadge.classList.add('bg-info');
+            } else if (newStatus === 'inactive') {
+                statusBadge.classList.add('bg-warning');
+            } else {
+                statusBadge.classList.add('bg-secondary');
+            }
+            
+            // Close modal
+            const modal = document.querySelector('.modal');
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            bsModal.hide();
+            
+            alert('Status changed successfully!');
+        } else {
+            alert('Error changing status: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error changing status');
+    });
+}
+
+function showRegistrationConfirmation(registrationNumber) {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">AI Found Company Registration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-robot"></i> AI Analysis found a company registration number:
+                    </div>
+                    <div class="text-center mb-3">
+                        <h4><span class="badge bg-primary fs-5">${registrationNumber}</span></h4>
+                    </div>
+                    <p class="text-muted">Would you like to add this company registration number to the customer record?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="dismissRegistrationModal()">No, Skip</button>
+                    <button type="button" class="btn btn-success" onclick="confirmRegistration('${registrationNumber}')">
+                        <i class="fas fa-check"></i> Yes, Add Registration
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // Clean up modal when hidden
+    modal.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
+    });
+}
+
+function confirmRegistration(registrationNumber) {
+    fetch(`/crm/customers/{{ customer.id }}/update-registration`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            company_registration: registrationNumber
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Company registration number added successfully!');
+            location.reload();
+        } else {
+            alert('Error adding registration number: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding registration number');
+    });
+}
+
+function dismissRegistrationModal() {
+    // Just reload the page to show the completed AI analysis
+    location.reload();
+}
+
+function toggleRegistrationConfirmation(checkbox) {
+    const confirmed = checkbox.checked;
+    
+    fetch(`/crm/customers/{{ customer.id }}/toggle-registration-confirmation`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            confirmed: confirmed
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the badge color based on confirmation status
+            const badge = document.querySelector('.badge.bg-info');
+            if (badge) {
+                if (confirmed) {
+                    badge.className = 'badge bg-success';
+                } else {
+                    badge.className = 'badge bg-warning';
+                }
+            }
+        } else {
+            alert('Error updating confirmation status: ' + data.error);
+            // Revert checkbox state
+            checkbox.checked = !confirmed;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating confirmation status');
+        // Revert checkbox state
+        checkbox.checked = !confirmed;
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CCS Quote Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-tachometer-alt text-primary"></i> Dashboard
+        </h1>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ total_quotes }}</h4>
+                        <p class="card-text">Total Quotes</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-file-invoice fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">{{ recent_quotes|length }}</h4>
+                        <p class="card-text">Recent Quotes</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">0</h4>
+                        <p class="card-text">Pending Quotes</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-hourglass-half fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h4 class="card-title">£0</h4>
+                        <p class="card-text">Total Value</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-pound-sign fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt text-warning"></i> Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <a href="{{ url_for('main.create_quote') }}" class="btn btn-primary btn-lg w-100">
+                            <i class="fas fa-plus"></i><br>
+                            Create New Quote
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <a href="{{ url_for('main.quotes_list') }}" class="btn btn-outline-secondary btn-lg w-100">
+                            <i class="fas fa-list"></i><br>
+                            View All Quotes
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <button class="btn btn-outline-info btn-lg w-100" onclick="importFromWhisper()">
+                            <i class="fas fa-microphone"></i><br>
+                            Import from Whisper
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Quotes -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history text-info"></i> Recent Quotes
+                </h5>
+                <a href="{{ url_for('main.quotes_list') }}" class="btn btn-sm btn-outline-primary">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_quotes %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Quote Number</th>
+                                <th>Client</th>
+                                <th>Project</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for quote in recent_quotes %}
+                            <tr>
+                                <td>
+                                    <span class="quote-number">{{ quote.quote_number }}</span>
+                                </td>
+                                <td>{{ quote.client_name }}</td>
+                                <td>{{ quote.project_title }}</td>
+                                <td>
+                                    {% if quote.status == 'draft' %}
+                                        <span class="badge bg-secondary status-badge">Draft</span>
+                                    {% elif quote.status == 'sent' %}
+                                        <span class="badge bg-primary status-badge">Sent</span>
+                                    {% elif quote.status == 'accepted' %}
+                                        <span class="badge bg-success status-badge">Accepted</span>
+                                    {% elif quote.status == 'declined' %}
+                                        <span class="badge bg-danger status-badge">Declined</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ quote.created_at.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('main.view_quote', quote_id=quote.id) }}" 
+                                           class="btn btn-outline-primary" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.generate_document', quote_id=quote.id) }}" 
+                                           class="btn btn-outline-success" title="Generate Document">
+                                            <i class="fas fa-file-word"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No quotes yet</h5>
+                    <p class="text-muted">Create your first quote to get started!</p>
+                    <a href="{{ url_for('main.create_quote') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create Quote
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Whisper Import Modal -->
+<div class="modal fade" id="whisperModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-microphone"></i> Import from Whisper
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Upload a text file generated from Whisper server to automatically create a quote.</p>
+                <form id="whisperForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="whisperFile" class="form-label">Select Text File</label>
+                        <input type="file" class="form-control" id="whisperFile" accept=".txt">
+                    </div>
+                    <div class="mb-3">
+                        <label for="whisperContent" class="form-label">Or paste content directly:</label>
+                        <textarea class="form-control" id="whisperContent" rows="5" 
+                                  placeholder="Paste the transcribed content here..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="processWhisperImport()">
+                    <i class="fas fa-upload"></i> Import
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function importFromWhisper() {
+    const modal = new bootstrap.Modal(document.getElementById('whisperModal'));
+    modal.show();
+}
+
+function processWhisperImport() {
+    const fileInput = document.getElementById('whisperFile');
+    const contentTextarea = document.getElementById('whisperContent');
+    
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const content = e.target.result;
+            processWhisperContent(content);
+        };
+        
+        reader.readAsText(file);
+    } else if (contentTextarea.value.trim()) {
+        processWhisperContent(contentTextarea.value);
+    } else {
+        alert('Please select a file or enter content.');
+        return;
+    }
+}
+
+function processWhisperContent(content) {
+    // This would process the Whisper content and create a quote
+    // For now, just redirect to create quote with the content
+    const encodedContent = encodeURIComponent(content);
+    window.location.href = `{{ url_for('main.create_quote') }}?whisper_content=${encodedContent}`;
+}
+</script>
+{% endblock %}
+
+

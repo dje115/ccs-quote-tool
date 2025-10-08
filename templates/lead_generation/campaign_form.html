@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Create Lead Generation Campaign - CCS Quote Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">
+                <i class="fas fa-rocket text-primary"></i> Create Lead Generation Campaign
+            </h1>
+            <a href="{{ url_for('lead_generation.dashboard') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<form id="campaignForm" method="POST">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Campaign Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle text-info"></i> Campaign Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Campaign Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required 
+                               placeholder="e.g., IT MSPs in Leicester - Q1 2024">
+                        <div class="form-text">Choose a descriptive name for your campaign</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"
+                                  placeholder="Optional description of your campaign goals..."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Criteria -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-search text-success"></i> Search Criteria
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="postcode" class="form-label">Postcode *</label>
+                                <input type="text" class="form-control" id="postcode" name="postcode" required 
+                                       placeholder="e.g., LE17 5NJ">
+                                <div class="form-text">Center point for your search area</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="distance_miles" class="form-label">Distance (miles)</label>
+                                <select class="form-select" id="distance_miles" name="distance_miles">
+                                    <option value="5">5 miles</option>
+                                    <option value="10">10 miles</option>
+                                    <option value="15">15 miles</option>
+                                    <option value="20" selected>20 miles</option>
+                                    <option value="25">25 miles</option>
+                                    <option value="30">30 miles</option>
+                                    <option value="40">40 miles</option>
+                                    <option value="50">50 miles</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="max_results" class="form-label">Maximum Results</label>
+                                <select class="form-select" id="max_results" name="max_results">
+                                    <option value="25">25 leads</option>
+                                    <option value="50" selected>50 leads</option>
+                                    <option value="100">100 leads</option>
+                                    <option value="200">200 leads</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="companyNameField" style="display: none;">
+                            <div class="mb-3">
+                                <label for="company_name_filter" class="form-label">Similar to Company</label>
+                                <input type="text" class="form-control" id="company_name_filter" name="company_name_filter" 
+                                       placeholder="e.g., Central Technology">
+                                <div class="form-text">Find businesses similar to this company</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- AI Prompts -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-robot text-warning"></i> AI Search Prompts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Choose a search prompt:</label>
+                        <div class="row">
+                            {% for prompt in default_prompts %}
+                            <div class="col-md-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="prompt_type" 
+                                           id="prompt_{{ prompt.prompt_type }}" value="{{ prompt.prompt_type }}"
+                                           data-requires-company="{{ prompt.requires_company_name|lower }}">
+                                    <label class="form-check-label" for="prompt_{{ prompt.prompt_type }}">
+                                        <strong>{{ prompt.name }}</strong>
+                                        <br><small class="text-muted">{{ prompt.description }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            <div class="col-md-6 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="prompt_type" 
+                                           id="prompt_custom" value="custom">
+                                    <label class="form-check-label" for="prompt_custom">
+                                        <strong>Custom Prompt</strong>
+                                        <br><small class="text-muted">Write your own search criteria</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3" id="customPromptField" style="display: none;">
+                        <label for="custom_prompt" class="form-label">Custom Search Prompt</label>
+                        <textarea class="form-control" id="custom_prompt" name="custom_prompt" rows="4"
+                                  placeholder="Describe the type of businesses you want to find..."></textarea>
+                        <div class="form-text">Be specific about the criteria for finding potential customers</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Campaign Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cog text-secondary"></i> Campaign Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="include_existing_customers" 
+                               name="include_existing_customers" value="1">
+                        <label class="form-check-label" for="include_existing_customers">
+                            Include existing customers in results
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="exclude_duplicates" 
+                               name="exclude_duplicates" value="1" checked>
+                        <label class="form-check-label" for="exclude_duplicates">
+                            Exclude duplicate companies (recommended)
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Submit Button -->
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-rocket"></i> Create Campaign
+                </button>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Campaign Preview -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-eye text-info"></i> Campaign Preview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="campaignPreview">
+                        <p class="text-muted">Fill in the form to see a preview of your campaign...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tips -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-lightbulb text-warning"></i> Campaign Tips
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6><i class="fas fa-map-marker-alt text-primary"></i> Location Strategy</h6>
+                        <p class="small text-muted">Use postcodes where you can easily travel for site visits. Start with 10-20 mile radius for better quality leads.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6><i class="fas fa-target text-success"></i> Targeting</h6>
+                        <p class="small text-muted">Be specific about the type of businesses you want. IT/MSP expansion campaigns often yield the best results.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6><i class="fas fa-filter text-info"></i> Quality Control</h6>
+                        <p class="small text-muted">Start with 50-100 leads to test your approach. You can always create more campaigns with refined criteria.</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6><i class="fas fa-clock text-warning"></i> Follow Up</h6>
+                        <p class="small text-muted">Plan to contact leads within 24-48 hours. Set up follow-up reminders and track your progress.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('campaignForm');
+    const promptTypeInputs = document.querySelectorAll('input[name="prompt_type"]');
+    const customPromptField = document.getElementById('customPromptField');
+    const companyNameField = document.getElementById('companyNameField');
+    const campaignPreview = document.getElementById('campaignPreview');
+    
+    // Handle prompt type changes
+    promptTypeInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                customPromptField.style.display = 'block';
+                companyNameField.style.display = 'none';
+            } else {
+                customPromptField.style.display = 'none';
+                
+                if (this.dataset.requiresCompany === 'true') {
+                    companyNameField.style.display = 'block';
+                } else {
+                    companyNameField.style.display = 'none';
+                }
+            }
+            updatePreview();
+        });
+    });
+    
+    // Update preview on form changes
+    const inputs = ['name', 'postcode', 'distance_miles', 'max_results', 'prompt_type'];
+    inputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('input', updatePreview);
+            input.addEventListener('change', updatePreview);
+        }
+    });
+    
+    function updatePreview() {
+        const name = document.getElementById('name').value || 'New Campaign';
+        const postcode = document.getElementById('postcode').value || 'Enter postcode';
+        const distance = document.getElementById('distance_miles').value || '20';
+        const maxResults = document.getElementById('max_results').value || '50';
+        const selectedPrompt = document.querySelector('input[name="prompt_type"]:checked');
+        const promptName = selectedPrompt ? selectedPrompt.nextElementSibling.querySelector('strong').textContent : 'Select prompt';
+        
+        campaignPreview.innerHTML = `
+            <div class="campaign-preview">
+                <h6><strong>${name}</strong></h6>
+                <p><strong>Search Area:</strong> ${postcode} (${distance} miles radius)</p>
+                <p><strong>Target Results:</strong> Up to ${maxResults} leads</p>
+                <p><strong>Search Type:</strong> ${promptName}</p>
+                <div class="alert alert-info small mt-3">
+                    <i class="fas fa-info-circle"></i> This campaign will use AI to find potential customers based on your criteria.
+                </div>
+            </div>
+        `;
+    }
+    
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+        
+        // Convert checkboxes to boolean
+        data.include_existing_customers = data.include_existing_customers === '1';
+        data.exclude_duplicates = data.exclude_duplicates === '1';
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Campaign...';
+        submitBtn.disabled = true;
+        
+        fetch('{{ url_for("lead_generation.create_campaign") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                window.location.href = `{{ url_for('lead_generation.view_campaign', campaign_id=0) }}`.replace('0', result.campaign_id);
+            } else {
+                alert('Error creating campaign: ' + result.error);
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error creating campaign');
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        });
+    });
+    
+    // Initial preview update
+    updatePreview();
+});
+</script>
+{% endblock %}
+

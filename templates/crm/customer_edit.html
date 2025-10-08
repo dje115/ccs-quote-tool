@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ customer.company_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h2>Edit Customer</h2>
+            <form method="POST" action="{{ url_for('crm.edit_customer', customer_id=customer.id) }}">
+                <div class="mb-3">
+                    <label for="company_name" class="form-label">Company Name *</label>
+                    <input type="text" class="form-control" id="company_name" name="company_name" value="{{ customer.company_name }}" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="website" class="form-label">Website</label>
+                    <input type="url" class="form-control" id="website" name="website" value="{{ customer.website or '' }}" placeholder="https://example.com">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="company_registration" class="form-label">Company Registration Number</label>
+                    <input type="text" class="form-control" id="company_registration" name="company_registration" value="{{ customer.company_registration or '' }}" placeholder="e.g., 12345678">
+                    <small class="form-text text-muted">Leave blank to let AI find it automatically</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="billing_address" class="form-label">Billing Address</label>
+                    <textarea class="form-control" id="billing_address" name="billing_address" rows="3" placeholder="Company billing address">{{ customer.billing_address or '' }}</textarea>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="main_phone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="main_phone" name="main_phone" value="{{ customer.main_phone or '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="main_email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="main_email" name="main_email" value="{{ customer.main_email or '' }}">
+                        </div>
+                    </div>
+                </div>
+                
+                
+                <div class="mb-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="lead" {% if customer.status.value == 'lead' %}selected{% endif %}>Lead</option>
+                        <option value="prospect" {% if customer.status.value == 'prospect' %}selected{% endif %}>Prospect</option>
+                        <option value="active" {% if customer.status.value == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if customer.status.value == 'inactive' %}selected{% endif %}>Inactive</option>
+                        <option value="former" {% if customer.status.value == 'former' %}selected{% endif %}>Former</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Internal notes about this customer">{{ customer.notes or '' }}</textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">Update Customer</button>
+                    <a href="{{ url_for('crm.view_customer', customer_id=customer.id) }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>AI Analysis</h5>
+                </div>
+                <div class="card-body">
+                    {% if customer.ai_analysis_raw %}
+                    <p class="small text-muted">This customer has been analyzed by AI. The business intelligence fields are automatically maintained and should not be manually edited here.</p>
+                    <div class="small">
+                        <p><strong>Sector:</strong> {{ customer.business_sector.value if customer.business_sector else 'Not analyzed' }}</p>
+                        <p><strong>Size:</strong> {{ customer.company_size or 'Not analyzed' }}</p>
+                        <p><strong>Lead Score:</strong> {{ customer.lead_score or 'Not analyzed' }}</p>
+                    </div>
+                    {% else %}
+                    <p class="small text-muted">This customer hasn't been analyzed by AI yet. You can run AI analysis from the customer detail page to automatically populate business intelligence fields.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>Quick Stats</h5>
+                </div>
+                <div class="card-body">
+                    <div class="small">
+                        <p><strong>Contacts:</strong> {{ customer.contacts|length }}</p>
+                        <p><strong>Quotes:</strong> {{ customer.quotes|length }}</p>
+                        <p><strong>Created:</strong> {{ customer.created_at.strftime('%Y-%m-%d') }}</p>
+                        <p><strong>Updated:</strong> {{ customer.updated_at.strftime('%Y-%m-%d') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

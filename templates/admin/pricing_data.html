@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing Data Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-pound-sign"></i> Pricing Data Management</h2>
+                <div>
+                    <button class="btn btn-success" onclick="refreshAllPricing()">
+                        <i class="fas fa-sync-alt"></i> Refresh All Pricing
+                    </button>
+                    <button class="btn btn-info" onclick="testPricing()">
+                        <i class="fas fa-flask"></i> Test Pricing
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pricing Summary -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-bar"></i> Pricing Cache Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for supplier in pricing_summary %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-{% if supplier.is_preferred %}success{% else %}light{% endif %}">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        {{ supplier.supplier_name }}
+                                        {% if supplier.is_preferred %}
+                                            <span class="badge bg-success">Preferred</span>
+                                        {% endif %}
+                                    </h6>
+                                    <p class="card-text">
+                                        <strong>Category:</strong> {{ supplier.category }}<br>
+                                        <strong>Cached Products:</strong> {{ supplier.cached_products }}
+                                    </p>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar" role="progressbar" 
+                                             style="width: {{ (supplier.cached_products / 10 * 100) if supplier.cached_products > 0 else 0 }}%">
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">
+                                        {% if supplier.cached_products == 0 %}
+                                            No pricing cached
+                                        {% elif supplier.cached_products < 5 %}
+                                            Limited pricing available
+                                        {% elif supplier.cached_products < 10 %}
+                                            Good pricing coverage
+                                        {% else %}
+                                            Excellent pricing coverage
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pricing Information -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i> Pricing Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>How It Works</h6>
+                            <ul>
+                                <li><strong>Real-time Pricing:</strong> Fetches current prices from supplier websites</li>
+                                <li><strong>Intelligent Caching:</strong> Stores pricing for 24 hours to avoid repeated requests</li>
+                                <li><strong>Fallback System:</strong> Uses cached pricing if website is unavailable</li>
+                                <li><strong>Multiple Sources:</strong> Tries web scraping, then database, then estimates</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Supported Suppliers</h6>
+                            <ul>
+                                <li><strong>Ubiquiti UniFi:</strong> Real pricing from ui.com</li>
+                                <li><strong>Cisco:</strong> Estimated pricing (requires login for real pricing)</li>
+                                <li><strong>Connectix:</strong> Estimated pricing for common products</li>
+                                <li><strong>Other Suppliers:</strong> Database pricing or estimates</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-lightbulb"></i>
+                        <strong>Tip:</strong> The system now uses real pricing from supplier websites instead of AI estimates. 
+                        For example, U6-Pro Access Points now show £125.00 (from Ubiquiti website) instead of estimated £220.00.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Pricing Modal -->
+<div class="modal fade" id="testPricingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Test Pricing Lookup</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="testPricingForm">
+                    <div class="mb-3">
+                        <label for="testSupplier" class="form-label">Supplier</label>
+                        <input type="text" class="form-control" id="testSupplier" placeholder="e.g., Ubiquiti UniFi" value="Ubiquiti UniFi">
+                    </div>
+                    <div class="mb-3">
+                        <label for="testProduct" class="form-label">Product</label>
+                        <input type="text" class="form-control" id="testProduct" placeholder="e.g., U6-Pro Access Point" value="U6-Pro Access Point">
+                    </div>
+                </form>
+                <div id="testResult" class="mt-3" style="display: none;">
+                    <div class="alert alert-info">
+                        <h6>Test Result:</h6>
+                        <pre id="testResultContent"></pre>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="runPricingTest()">Test Pricing</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshAllPricing() {
+    if (confirm('This will refresh pricing for all suppliers. This may take a few minutes. Continue?')) {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+        btn.disabled = true;
+        
+        fetch('/admin/pricing/refresh', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Success: ' + data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+}
+
+function testPricing() {
+    const modal = new bootstrap.Modal(document.getElementById('testPricingModal'));
+    modal.show();
+}
+
+function runPricingTest() {
+    const supplier = document.getElementById('testSupplier').value;
+    const product = document.getElementById('testProduct').value;
+    
+    if (!supplier || !product) {
+        alert('Please enter both supplier and product names');
+        return;
+    }
+    
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    btn.disabled = true;
+    
+    const encodedSupplier = encodeURIComponent(supplier);
+    const encodedProduct = encodeURIComponent(product);
+    
+    fetch(`/admin/pricing/test/${encodedSupplier}/${encodedProduct}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('testResultContent').textContent = JSON.stringify(data.result, null, 2);
+            document.getElementById('testResult').style.display = 'block';
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}
+
+

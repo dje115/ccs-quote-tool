@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Manual Lead Generation - {{ campaign.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('main.create_quote') }}" class="btn btn-primary btn-sm mb-2 w-100">
+                        <i class="fas fa-plus"></i> New Quote
+                    </a>
+                    <a href="{{ url_for('main.list_quotes') }}" class="btn btn-outline-primary btn-sm mb-2 w-100">
+                        <i class="fas fa-list"></i> View Quotes
+                    </a>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Campaign Info</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>Name:</strong> {{ campaign.name }}</p>
+                    <p><strong>Type:</strong> {{ campaign.prompt_type }}</p>
+                    <p><strong>Location:</strong> {{ campaign.postcode }}</p>
+                    <p><strong>Distance:</strong> {{ campaign.distance_miles }} miles</p>
+                    <p><strong>Max Results:</strong> {{ campaign.max_results }}</p>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Statistics</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>Total Quotes:</strong> 0</p>
+                    <p><strong>This Month:</strong> 0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-rocket text-primary"></i> Manual Lead Generation</h2>
+                    <p class="text-muted">Generate leads using external AI engines</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('lead_generation.view_campaign', campaign_id=campaign.id) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Campaign
+                    </a>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> How to Use Manual Lead Generation</h5>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li><strong>Copy the prompt below</strong> to your clipboard</li>
+                        <li><strong>Open your preferred AI engine</strong> (ChatGPT, Google Gemini, Claude, etc.)</li>
+                        <li><strong>Paste the prompt</strong> and run it</li>
+                        <li><strong>Copy the AI's response</strong> (the JSON results)</li>
+                        <li><strong>Paste the results below</strong> and click "Process Results"</li>
+                        <li><strong>Review and select leads</strong> to add to your CRM</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- AI Prompt Section -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-copy"></i> AI Prompt to Copy</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="copyPrompt()">
+                        <i class="fas fa-copy"></i> Copy Prompt
+                    </button>
+                </div>
+                <div class="card-body">
+                    <textarea id="ai-prompt" class="form-control" rows="15" readonly>{{ ai_prompt }}</textarea>
+                </div>
+            </div>
+
+            <!-- Results Input Section -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-paste"></i> Paste AI Results Here</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('lead_generation.process_manual_results', campaign_id=campaign.id) }}">
+                        <div class="mb-3">
+                            <label for="ai_results" class="form-label">AI Response (JSON format)</label>
+                            <textarea id="ai_results" name="ai_results" class="form-control" rows="15" 
+                                    placeholder="Paste the AI's JSON response here..."></textarea>
+                            <div class="form-text">
+                                Paste the complete JSON response from the AI engine. Make sure it includes the array of company objects.
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-cogs"></i> Process Results
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearResults()">
+                                <i class="fas fa-trash"></i> Clear
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Sample JSON Format -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-code"></i> Expected JSON Format</h5>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded"><code>[
+  {
+    "company_name": "Example Company Ltd",
+    "website": "https://example.com",
+    "description": "Reason they need cabling services",
+    "project_value": "Medium",
+    "timeline": "Within 6 months",
+    "contact_name": "John Smith",
+    "contact_email": "john@example.com",
+    "contact_phone": "01234 567890",
+    "lead_score": 85,
+    "address": "123 Business Street, City",
+    "postcode": "{{ campaign.postcode }}",
+    "business_sector": "Technology",
+    "company_size": "Medium"
+  }
+]</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyPrompt() {
+    const promptText = document.getElementById('ai-prompt');
+    promptText.select();
+    promptText.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        document.execCommand('copy');
+        // Show success message
+        const button = event.target.closest('button');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        button.classList.remove('btn-outline-primary');
+        button.classList.add('btn-success');
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-primary');
+        }, 2000);
+    } catch (err) {
+        alert('Failed to copy prompt. Please select and copy manually.');
+    }
+}
+
+function clearResults() {
+    if (confirm('Are you sure you want to clear the results?')) {
+        document.getElementById('ai_results').value = '';
+    }
+}
+
+// Auto-resize textareas
+document.addEventListener('DOMContentLoaded', function() {
+    const textareas = document.querySelectorAll('textarea');
+    textareas.forEach(textarea => {
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+    });
+});
+</script>
+{% endblock %}

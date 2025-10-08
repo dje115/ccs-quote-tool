@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if contact else 'Add' }} Contact{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h2>{{ 'Edit' if contact else 'Add' }} Contact for {{ customer.company_name }}</h2>
+            <form method="POST" action="{% if contact %}{{ url_for('crm.edit_contact', customer_id=customer.id, contact_id=contact.id) }}{% else %}{{ url_for('crm.new_contact', id=customer.id) }}{% endif %}">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="first_name" class="form-label">First Name *</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ contact.first_name if contact else '' }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="last_name" class="form-label">Last Name *</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ contact.last_name if contact else '' }}" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Email Addresses -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Primary Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ contact.email if contact else '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="email_secondary" class="form-label">Secondary Email</label>
+                            <input type="email" class="form-control" id="email_secondary" name="email_secondary" value="{{ contact.email_secondary if contact else '' }}">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Phone Numbers -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Primary Phone</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ contact.phone if contact else '' }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="phone_secondary" class="form-label">Secondary Phone</label>
+                            <input type="tel" class="form-control" id="phone_secondary" name="phone_secondary" value="{{ contact.phone_secondary if contact else '' }}">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Primary Contact Preferences -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="primary_email" class="form-label">Preferred Email</label>
+                            <select class="form-select" id="primary_email" name="primary_email">
+                                <option value="primary" {% if not contact or contact.primary_email == 'primary' %}selected{% endif %}>Primary Email</option>
+                                <option value="secondary" {% if contact and contact.primary_email == 'secondary' %}selected{% endif %}>Secondary Email</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="primary_phone" class="form-label">Preferred Phone</label>
+                            <select class="form-select" id="primary_phone" name="primary_phone">
+                                <option value="primary" {% if not contact or contact.primary_phone == 'primary' %}selected{% endif %}>Primary Phone</option>
+                                <option value="secondary" {% if contact and contact.primary_phone == 'secondary' %}selected{% endif %}>Secondary Phone</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="role" class="form-label">Role</label>
+                    <select class="form-select" id="role" name="role">
+                        {% for role in contact_roles %}
+                        <option value="{{ role.value }}" {% if contact and contact.role == role %}selected{% endif %}>{{ role.value.title() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_primary" name="is_primary" {% if contact and contact.is_primary %}checked{% endif %}>
+                        <label class="form-check-label" for="is_primary">
+                            Primary Contact
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">Only one contact can be marked as primary per customer.</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Additional notes about this contact">{{ contact.notes if contact else '' }}</textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">{{ 'Update' if contact else 'Add' }} Contact</button>
+                    <a href="{{ url_for('crm.view_customer', customer_id=customer.id) }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Contact Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="small">
+                        <li><strong>Decision Maker:</strong> Person who can approve purchases</li>
+                        <li><strong>Technical:</strong> Person who understands technical requirements</li>
+                        <li><strong>Finance:</strong> Person responsible for budgets and payments</li>
+                        <li><strong>IT Manager:</strong> Person managing IT infrastructure</li>
+                        <li><strong>Primary Contact:</strong> Your main point of contact for this customer</li>
+                    </ul>
+                </div>
+            </div>
+            
+            {% if customer.contacts %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>Existing Contacts</h5>
+                </div>
+                <div class="card-body">
+                    {% for existing_contact in customer.contacts %}
+                    {% if not contact or existing_contact.id != contact.id %}
+                    <div class="mb-2 pb-2 {% if not loop.last %}border-bottom{% endif %}">
+                        <strong>{{ existing_contact.first_name }} {{ existing_contact.last_name }}</strong>
+                        {% if existing_contact.is_primary %}
+                        <span class="badge bg-primary small">Primary</span>
+                        {% endif %}
+                        <br>
+                        <small class="text-muted">{{ existing_contact.role.value }}</small>
+                        {% if existing_contact.email %}
+                        <br><small>{{ existing_contact.email }}</small>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

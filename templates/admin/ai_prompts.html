@@ -1,0 +1,613 @@
+{% extends "base.html" %}
+
+{% block title %}Manage AI Prompts - CCS Quote Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-robot text-primary"></i> Manage AI Prompts
+        </h1>
+    </div>
+</div>
+
+<!-- Add New Prompt -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-plus text-primary"></i> Add New AI Prompt
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="addPromptForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="prompt_type" class="form-label">Prompt Type *</label>
+                            <select class="form-select" id="prompt_type" name="prompt_type" required>
+                                <option value="">Select Type</option>
+                                <option value="quote_analysis">Quote Analysis</option>
+                                <option value="product_search">Product Search</option>
+                                <option value="building_analysis">Building Analysis</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Prompt Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label for="description" class="form-label">Description</label>
+                            <input type="text" class="form-control" id="description" name="description" 
+                                   placeholder="Brief description of what this prompt does">
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label for="system_prompt" class="form-label">System Prompt *</label>
+                            <textarea class="form-control" id="system_prompt" name="system_prompt" rows="4" required
+                                      placeholder="The system prompt that defines the AI's role and behavior..."></textarea>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label for="user_prompt_template" class="form-label">User Prompt Template *</label>
+                            <textarea class="form-control" id="user_prompt_template" name="user_prompt_template" rows="6" required
+                                      placeholder="The user prompt template with variables like {variable_name}..."></textarea>
+                            <div class="form-text">
+                                Use variables like {project_title}, {building_size}, etc. These will be replaced with actual data.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_default" name="is_default">
+                                <label class="form-check-label" for="is_default">
+                                    Set as default prompt for this type
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                                <label class="form-check-label" for="is_active">
+                                    Active (prompt is enabled)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> Add Prompt
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Prompts List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-table"></i> AI Prompts
+                </h5>
+                <button class="btn btn-sm btn-outline-primary" onclick="initializeDefaults()">
+                    <i class="fas fa-magic"></i> Initialize Defaults
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-6">
+                        <h5>Active Default Prompt</h5>
+                        <div id="activePromptPanel" class="border rounded p-3 bg-light">
+                            <p class="text-muted mb-0">Select a prompt to view details.</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <h5>Prompt History</h5>
+                        <div id="promptHistoryPanel" class="border rounded p-3 bg-light" style="max-height: 320px; overflow-y: auto;">
+                            <p class="text-muted mb-0">History will appear here when a prompt has changes.</p>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="d-flex align-items-center mb-3">
+                    <span class="me-2 text-muted">View default for:</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" onclick="loadActivePrompt('quote_analysis')">Quote Analysis</button>
+                        <button type="button" class="btn btn-outline-info" onclick="loadActivePrompt('product_search')">Product Search</button>
+                        <button type="button" class="btn btn-outline-success" onclick="loadActivePrompt('building_analysis')">Building Analysis</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Default</th>
+                                <th>Active</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for prompt in prompts %}
+                            <tr>
+                                <td>
+                                    <strong>{{ prompt.name }}</strong>
+                                    {% if prompt.description %}
+                                        <br><small class="text-muted">{{ prompt.description }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'primary' if prompt.prompt_type == 'quote_analysis' else 'info' if prompt.prompt_type == 'product_search' else 'success' }}">
+                                        {{ prompt.prompt_type.replace('_', ' ').title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if prompt.is_default %}
+                                        <span class="badge bg-success">Default</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">No</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if prompt.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ prompt.created_at.strftime('%d/%m/%Y') }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="viewPrompt({{ prompt.id }})" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-warning" onclick="editPrompt({{ prompt.id }})" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info" onclick="testPrompt({{ prompt.id }})" title="Test">
+                                            <i class="fas fa-vial"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="deletePrompt({{ prompt.id }})" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Prompt View/Edit Modal -->
+<div class="modal fade" id="promptModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">AI Prompt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPromptForm">
+                    <input type="hidden" id="edit_prompt_id" name="prompt_id">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="edit_prompt_type" class="form-label">Prompt Type</label>
+                            <select class="form-select" id="edit_prompt_type" name="prompt_type" required>
+                                <option value="quote_analysis">Quote Analysis</option>
+                                <option value="product_search">Product Search</option>
+                                <option value="building_analysis">Building Analysis</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_name" class="form-label">Prompt Name</label>
+                            <input type="text" class="form-control" id="edit_name" name="name" required>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label for="edit_description" class="form-label">Description</label>
+                            <input type="text" class="form-control" id="edit_description" name="description">
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label for="edit_system_prompt" class="form-label">System Prompt</label>
+                            <textarea class="form-control" id="edit_system_prompt" name="system_prompt" rows="4" required></textarea>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <label for="edit_user_prompt_template" class="form-label">User Prompt Template</label>
+                            <textarea class="form-control" id="edit_user_prompt_template" name="user_prompt_template" rows="6" required></textarea>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_is_default" name="is_default">
+                                <label class="form-check-label" for="edit_is_default">
+                                    Default prompt
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit_is_active" name="is_active">
+                                <label class="form-check-label" for="edit_is_active">
+                                    Active
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Prompt Modal -->
+<div class="modal fade" id="testModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Test AI Prompt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Test Data (JSON format)</label>
+                    <textarea class="form-control" id="testData" rows="8" placeholder='{"project_title": "Office WiFi", "building_size": 500, "wifi_requirements": true}'></textarea>
+                    <div class="form-text">
+                        <strong>Sample data for different prompt types:</strong><br>
+                        <small>
+                        <strong>Quote Analysis:</strong> {"project_title": "Office WiFi", "project_description": "WiFi installation for new office", "building_type": "commercial", "building_size": 500, "number_of_floors": 2, "number_of_rooms": 10, "site_address": "123 Business St", "wifi_requirements": true, "cctv_requirements": false, "door_entry_requirements": false, "special_requirements": "High-speed internet required"}<br>
+                        <strong>Product Search:</strong> {"category": "wifi", "query": "UniFi access points for office"}<br>
+                        <strong>Building Analysis:</strong> {"address": "123 Business Street, City", "building_type": "commercial", "building_size": 500}
+                        </small>
+                    </div>
+                </div>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-info" onclick="runPromptTest()">
+                        <i class="fas fa-vial"></i> Run Test
+                    </button>
+                </div>
+                <div id="testResults" class="mt-3" style="display: none;">
+                    <h6>Test Results:</h6>
+                    <div class="border p-3 bg-light">
+                        <pre id="testResultsContent"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPromptId = null;
+let currentPromptType = 'quote_analysis';
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Add prompt form
+    document.getElementById('addPromptForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        addPrompt();
+    });
+    
+    // Edit prompt form
+    document.getElementById('editPromptForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        savePrompt();
+    });
+
+    loadActivePrompt('quote_analysis');
+});
+
+function loadActivePrompt(promptType) {
+    currentPromptType = promptType;
+    fetch(`/admin/ai-prompts/${promptType}/active`)
+        .then(res => res.json())
+        .then(data => {
+            const panel = document.getElementById('activePromptPanel');
+            if (!data.success) {
+                panel.innerHTML = `<div class="alert alert-warning mb-0">${data.message || 'No prompt found.'}</div>`;
+                return;
+            }
+            const prompt = data.prompt;
+            panel.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">${prompt.name}</h6>
+                        <small class="text-muted">${prompt.prompt_type.replace('_',' ').toUpperCase()} • Updated ${new Date(prompt.updated_at).toLocaleString()}</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="editPrompt(${prompt.id})"><i class="fas fa-edit"></i> Edit</button>
+                </div>
+                <hr>
+                <strong>System Prompt</strong>
+                <pre class="bg-white border p-2">${prompt.system_prompt}</pre>
+                <strong>User Prompt Template</strong>
+                <pre class="bg-white border p-2">${prompt.user_prompt_template}</pre>
+            `;
+            loadPromptHistory(prompt.id);
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('activePromptPanel').innerHTML = '<div class="alert alert-danger mb-0">Error loading prompt.</div>';
+        });
+}
+
+function loadPromptHistory(promptId) {
+    fetch(`/admin/ai-prompts/${promptId}/history`)
+        .then(res => res.json())
+        .then(data => {
+            const panel = document.getElementById('promptHistoryPanel');
+            if (!data.success || !data.history.length) {
+                panel.innerHTML = '<p class="text-muted mb-0">No history captured yet.</p>';
+                return;
+            }
+            const items = data.history.map(entry => `
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>${new Date(entry.created_at).toLocaleString()}</strong><br>
+                            <small class="text-muted">${entry.note || 'Snapshot'}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="restorePrompt(${entry.id})"><i class="fas fa-history"></i> Restore</button>
+                    </div>
+                    <details class="mt-2">
+                        <summary>View snapshot</summary>
+                        <div class="mt-2">
+                            <strong>System Prompt</strong>
+                            <pre class="bg-white border p-2">${entry.system_prompt}</pre>
+                            <strong>User Prompt Template</strong>
+                            <pre class="bg-white border p-2">${entry.user_prompt_template}</pre>
+                        </div>
+                    </details>
+                </div>
+            `).join('');
+            panel.innerHTML = items;
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('promptHistoryPanel').innerHTML = '<div class="alert alert-danger mb-0">Error loading history.</div>';
+        });
+}
+
+function restorePrompt(historyId) {
+    if (!confirm('Restore this snapshot? Current prompt will be archived.')) return;
+    fetch(`/admin/ai-prompts/history/${historyId}/restore`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            loadActivePrompt(currentPromptType);
+            location.reload();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Error restoring snapshot.');
+    });
+}
+
+function addPrompt() {
+    const formData = new FormData(document.getElementById('addPromptForm'));
+    const data = {};
+    
+    for (let [key, value] of formData.entries()) {
+        if (key === 'is_default' || key === 'is_active') {
+            data[key] = true;
+        } else {
+            data[key] = value;
+        }
+    }
+    
+    // Add unchecked checkboxes
+    if (!data.is_default) data.is_default = false;
+    if (!data.is_active) data.is_active = true;
+    
+    fetch('{{ url_for("admin.add_ai_prompt") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            document.getElementById('addPromptForm').reset();
+            location.reload();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while adding the prompt.');
+    });
+}
+
+function viewPrompt(promptId) {
+    // Fetch prompt data and show in modal
+    fetch(`/admin/ai-prompts/${promptId}`)
+    .then(response => response.json())
+    .then(prompt => {
+        document.getElementById('edit_prompt_id').value = prompt.id;
+        document.getElementById('edit_prompt_type').value = prompt.prompt_type;
+        document.getElementById('edit_name').value = prompt.name;
+        document.getElementById('edit_description').value = prompt.description || '';
+        document.getElementById('edit_system_prompt').value = prompt.system_prompt;
+        document.getElementById('edit_user_prompt_template').value = prompt.user_prompt_template;
+        document.getElementById('edit_is_default').checked = prompt.is_default;
+        document.getElementById('edit_is_active').checked = prompt.is_active;
+        
+        loadActivePrompt(prompt.prompt_type);
+
+        const modal = new bootstrap.Modal(document.getElementById('promptModal'));
+        modal.show();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error loading prompt data.');
+    });
+}
+
+function editPrompt(promptId) {
+    currentPromptId = promptId;
+    viewPrompt(promptId);
+}
+
+function savePrompt() {
+    const data = {
+        name: document.getElementById('edit_name').value,
+        description: document.getElementById('edit_description').value,
+        system_prompt: document.getElementById('edit_system_prompt').value,
+        user_prompt_template: document.getElementById('edit_user_prompt_template').value,
+        is_default: document.getElementById('edit_is_default').checked,
+        is_active: document.getElementById('edit_is_active').checked
+    };
+    
+    fetch(`/admin/ai-prompts/${currentPromptId}/edit`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            loadActivePrompt(document.getElementById('edit_prompt_type').value);
+            location.reload();
+        } else {
+            alert('Error: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while saving the prompt.');
+    });
+}
+
+function testPrompt(promptId) {
+    currentPromptId = promptId;
+    document.getElementById('testResults').style.display = 'none';
+    
+    const modal = new bootstrap.Modal(document.getElementById('testModal'));
+    modal.show();
+}
+
+function runPromptTest() {
+    const testData = document.getElementById('testData').value;
+    
+    try {
+        const parsedData = JSON.parse(testData);
+        
+        fetch(`/admin/ai-prompts/${currentPromptId}/test`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ test_data: parsedData })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                document.getElementById('testResultsContent').textContent = result.result;
+                document.getElementById('testResults').style.display = 'block';
+            } else {
+                alert('Test failed: ' + result.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while testing the prompt.');
+        });
+    } catch (error) {
+        alert('Invalid JSON format in test data.');
+    }
+}
+
+function deletePrompt(promptId) {
+    if (confirm('Are you sure you want to delete this prompt? This action cannot be undone.')) {
+        fetch(`/admin/ai-prompts/${promptId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the prompt.');
+        });
+    }
+}
+
+function initializeDefaults() {
+    if (confirm('Initialize default AI prompts? This will create the standard prompts for quote analysis, product search, and building analysis.')) {
+        fetch('/admin/ai-prompts/initialize-defaults', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while initializing defaults.');
+        });
+    }
+}
+</script>
+{% endblock %}

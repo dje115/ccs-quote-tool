@@ -1,0 +1,1256 @@
+{% extends "base.html" %}
+
+{% block title %}Create Quote - CCS Quote Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-plus text-primary"></i> Create New Quote
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user"></i> Client Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="quoteForm">
+                    <input type="hidden" id="clarifications_log_input" name="clarifications_log">
+                    <input type="hidden" id="ai_analysis_text" name="ai_analysis_text">
+                    <input type="hidden" id="ai_products_json" name="ai_products_json">
+                    <input type="hidden" id="ai_labour_json" name="ai_labour_json">
+                    <input type="hidden" id="ai_alternatives_json" name="ai_alternatives_json">
+                    <input type="hidden" id="ai_quotation_json" name="ai_quotation_json">
+                    <input type="hidden" id="ai_estimated_time" name="ai_estimated_time">
+                    <input type="hidden" id="ai_raw_response" name="ai_raw_response">
+                    <input type="hidden" id="travel_distance_km" name="travel_distance_km">
+                    <input type="hidden" id="travel_time_minutes" name="travel_time_minutes">
+                    <!-- Client Details -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="client_name" class="form-label">Client Name *</label>
+                            <input type="text" class="form-control" id="client_name" name="client_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="client_email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="client_email" name="client_email">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="client_phone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="client_phone" name="client_phone">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="project_title" class="form-label">Project Title *</label>
+                            <input type="text" class="form-control" id="project_title" name="project_title" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Customer Selection -->
+                    <div class="mb-3">
+                        <label class="form-label">Customer</label>
+                        <div class="row">
+                            <div class="col-md-8">
+                                <select class="form-select" id="customer_select" name="customer_id">
+                                    <option value="">Select existing customer or create new...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button type="button" class="btn btn-outline-primary" id="create_customer_btn">
+                                    <i class="fas fa-plus"></i> Create New Customer
+                                </button>
+                            </div>
+                        </div>
+                        <small class="form-text text-muted">Select an existing customer or create a new one to link this quote.</small>
+                    </div>
+                    
+                    <!-- Site Information -->
+                    <div class="mb-3">
+                        <label for="site_address" class="form-label">Site Address *</label>
+                        <textarea class="form-control" id="site_address" name="site_address" rows="2" required></textarea>
+                        <button type="button" class="btn btn-sm btn-outline-info mt-2" onclick="getBuildingInfo()">
+                            <i class="fas fa-map-marker-alt"></i> Get Building Info
+                        </button>
+                    </div>
+                    
+                    <!-- Building Details -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="building_type" class="form-label">Building Type</label>
+                            <select class="form-select" id="building_type" name="building_type">
+                                <option value="">Select Type</option>
+                                <option value="residential">Residential</option>
+                                <option value="commercial">Commercial</option>
+                                <option value="retail">Retail</option>
+                                <option value="industrial">Industrial</option>
+                                <option value="educational">Educational</option>
+                                <option value="healthcare">Healthcare</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="building_size" class="form-label">Building Size (sqm)</label>
+                            <input type="number" class="form-control" id="building_size" name="building_size" min="0" step="0.1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="number_of_floors" class="form-label">Number of Floors</label>
+                            <input type="number" class="form-control" id="number_of_floors" name="number_of_floors" min="1" value="1">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="number_of_rooms" class="form-label">Number of Rooms/Areas</label>
+                            <input type="number" class="form-control" id="number_of_rooms" name="number_of_rooms" min="1" value="1">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cabling_type" class="form-label">Cabling Type</label>
+                            <select class="form-select" id="cabling_type" name="cabling_type">
+                                <option value="">Select Type</option>
+                                <option value="cat5e">Cat5e</option>
+                                <option value="cat6">Cat6</option>
+                                <option value="cat6a">Cat6a</option>
+                                <option value="fiber">Fiber</option>
+                                <option value="mixed">Mixed (Multiple Types)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Requirements -->
+                    <div class="mb-3">
+                        <label class="form-label">Requirements</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="wifi_requirements" name="wifi_requirements">
+                            <label class="form-check-label" for="wifi_requirements">
+                                <i class="fas fa-wifi text-primary"></i> WiFi Installation (UniFi)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="cctv_requirements" name="cctv_requirements">
+                            <label class="form-check-label" for="cctv_requirements">
+                                <i class="fas fa-video text-info"></i> CCTV System (UniFi)
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="door_entry_requirements" name="door_entry_requirements">
+                            <label class="form-check-label" for="door_entry_requirements">
+                                <i class="fas fa-door-open text-warning"></i> Door Entry System (Paxton Net2/UniFi)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Project Description -->
+                    <div class="mb-3">
+                        <label for="project_description" class="form-label">Project Description</label>
+                        <textarea class="form-control" id="project_description" name="project_description" rows="3" 
+                                  placeholder="Describe the project requirements, special considerations, etc."></textarea>
+                    </div>
+                    
+                    <!-- Special Requirements -->
+                    <div class="mb-3">
+                        <label for="special_requirements" class="form-label">Special Requirements</label>
+                        <textarea class="form-control" id="special_requirements" name="special_requirements" rows="2" 
+                                  placeholder="Any special requirements, constraints, or additional services needed..."></textarea>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <!-- Travel Export Options -->
+                    <div class="mb-3" id="travelExportSection" style="display: none;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include_travel_in_export" name="include_travel_in_export">
+                            <label class="form-check-label" for="include_travel_in_export">
+                                Include travel distance and cost in Word quotation export
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-outline-secondary me-md-2" onclick="analyzeRequirements(null, true)">
+                            <i class="fas fa-brain"></i> AI Analysis
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create Quote
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4" id="aiSummaryCard" style="display: none;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="fas fa-lightbulb text-info"></i> AI Summary &amp; Quotation</h5>
+                <span class="badge bg-info" id="aiSummaryStatus">Draft</span>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Analysis Summary:</strong>
+                    <p id="aiAnalysisSummary" class="mb-0 text-muted"></p>
+                </div>
+                <div class="mb-3" id="aiTravelSection" style="display: none;">
+                    <h6><i class="fas fa-route"></i> Travel Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p id="aiTravelInfo" class="mb-1"><strong>Distance:</strong> <span id="travelDistance"></span></p>
+                            <p class="mb-1"><strong>Travel Time:</strong> <span id="travelTime"></span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Travel Cost:</strong> <span id="travelCost"></span></p>
+                            <small class="text-muted" id="aiTravelOrigin"></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-box-open"></i> Recommended Products</h6>
+                        <ul id="aiProductsList" class="mb-3"></ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-sitemap"></i> Scope of Works</h6>
+                        <ul id="aiScopeList" class="mb-3"></ul>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-tools"></i> Labour Estimate</h6>
+                        <p id="aiLabourSummary" class="text-muted small"></p>
+                        <ul id="aiLabourList" class="mb-3"></ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-warehouse"></i> Materials</h6>
+                        <ul id="aiMaterialsList" class="mb-3"></ul>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6><i class="fas fa-info-circle"></i> Assumptions &amp; Exclusions</h6>
+                        <ul id="aiAssumptionsList" class="mb-3"></ul>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <h6><i class="fas fa-lightbulb"></i> Alternatives</h6>
+                    <ul id="aiAlternativesList" class="mb-0"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI Analysis Panel -->
+    <div class="col-lg-4">
+        <div class="card" id="analysisCard" style="display: none;">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-robot text-info"></i> AI Analysis
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="analysisContent">
+                    <div class="text-center">
+                        <div class="spinner-border text-info" role="status">
+                            <span class="visually-hidden">Analyzing...</span>
+                        </div>
+                        <p class="mt-2">Analyzing requirements...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Building Info Panel -->
+        <div class="card" id="buildingInfoCard" style="display: none;">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-building text-success"></i> Building Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="buildingInfoContent">
+                    <!-- Building info will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clarification Modal -->
+<div class="modal fade" id="clarificationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-clipboard-question text-primary"></i> AI Clarification Checklist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Answer anything you already know. You can leave fields blank to skip.</p>
+                <div id="clarificationModalContent">
+                    <div class="text-center py-3">
+                        <div class="spinner-border" role="status"></div>
+                        <p class="mt-2">Gathering questions…</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" onclick="runAnalysisWithoutAnswers()">Skip &amp; run AI</button>
+                <button type="button" class="btn btn-primary" onclick="submitClarificationModal()">Submit answers &amp; run AI</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load customers for selection
+    loadCustomers();
+    
+    // Handle customer selection
+    document.getElementById('customer_select').addEventListener('change', function() {
+        const customerId = this.value;
+        if (customerId) {
+            // Load customer details and populate form
+            loadCustomerDetails(customerId);
+        }
+    });
+    
+    // Handle create customer button
+    document.getElementById('create_customer_btn').addEventListener('click', function() {
+        openCreateCustomerModal();
+    });
+    
+    // Check for Whisper content in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const whisperContent = urlParams.get('whisper_content');
+    if (whisperContent) {
+        document.getElementById('project_description').value = decodeURIComponent(whisperContent);
+        analyzeRequirements();
+    }
+    
+    // Form submission
+    document.getElementById('quoteForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitQuote();
+    });
+});
+
+let clarificationTemplate = [];
+let clarificationsPending = [];
+let clarificationModalInstance = null;
+
+function submitQuote() {
+    const formData = new FormData(document.getElementById('quoteForm'));
+    const data = {};
+    
+    for (let [key, value] of formData.entries()) {
+        if (key === 'wifi_requirements' || key === 'cctv_requirements' || key === 'door_entry_requirements') {
+            data[key] = true;
+        } else {
+            data[key] = value;
+        }
+    }
+    
+    // Add unchecked checkboxes
+    if (!data.wifi_requirements) data.wifi_requirements = false;
+    if (!data.cctv_requirements) data.cctv_requirements = false;
+    if (!data.door_entry_requirements) data.door_entry_requirements = false;
+    
+    if (clarificationResponses.length > 0) {
+        data['clarification_answers'] = clarificationResponses;
+    } else {
+        const answers = gatherClarificationAnswers();
+        if (answers.some(a => a.answer)) {
+            data['clarification_answers'] = answers;
+        }
+    }
+    data['clarifications_log'] = document.getElementById('clarifications_log_input').value;
+    data['ai_analysis_record'] = {
+        analysis: document.getElementById('ai_analysis_text').value,
+        products: JSON.parse(document.getElementById('ai_products_json').value || '[]'),
+        labour_breakdown: JSON.parse(document.getElementById('ai_labour_json').value || '[]'),
+        alternatives: JSON.parse(document.getElementById('ai_alternatives_json').value || '[]'),
+        quotation: JSON.parse(document.getElementById('ai_quotation_json').value || '{}'),
+        estimated_time: document.getElementById('ai_estimated_time').value,
+        travel_distance_km: document.getElementById('travel_distance_km').value,
+        travel_time_minutes: document.getElementById('travel_time_minutes').value,
+        ai_raw_response: document.getElementById('ai_raw_response').value  // Include complete raw AI response
+    };
+
+    fetch('{{ url_for("main.submit_quote") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            window.location.href = `/quote/${result.quote_id}`;
+        } else {
+            alert('Error: ' + result.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while creating the quote.');
+    });
+}
+
+function openClarificationModal() {
+    clarificationModalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById('clarificationModal'));
+    const content = document.getElementById('clarificationModalContent');
+    content.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-2">Checking what details are missing…</p>
+        </div>
+    `;
+    clarificationModalInstance.show();
+    analyzeRequirements(null, true);
+}
+
+function renderClarificationModal(questions) {
+    const content = document.getElementById('clarificationModalContent');
+    clarificationTemplate = questions;
+    clarificationsPending = questions;
+
+    if (!questions || questions.length === 0) {
+        content.innerHTML = `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> AI has no follow-up questions. You can run the analysis directly.
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    questions.forEach((question, idx) => {
+        html += `
+            <div class="mb-3">
+                <label class="form-label">${question}</label>
+                <textarea class="form-control modal-clarification" data-index="${idx}" rows="2" placeholder="Answer (optional)"></textarea>
+            </div>
+        `;
+    });
+    content.innerHTML = html;
+}
+
+function gatherModalClarifications() {
+    const inputs = document.querySelectorAll('.modal-clarification');
+    const answers = [];
+    inputs.forEach((textarea, idx) => {
+        const answer = textarea.value.trim();
+        answers.push({
+            question: clarificationTemplate[idx] || '',
+            answer
+        });
+    });
+    return answers;
+}
+
+function submitClarificationModal() {
+    const answers = gatherModalClarifications();
+    clarificationResponses = answers;
+    clarificationModalInstance.hide();
+    analyzeRequirements(answers, false, true);
+}
+
+function runAnalysisWithoutAnswers() {
+    clarificationResponses = [];
+    clarificationModalInstance.hide();
+    analyzeRequirements(null, false, true);
+}
+
+function showClarificationModalFromAlert() {
+    clarificationModalInstance = bootstrap.Modal.getOrCreateInstance(document.getElementById('clarificationModal'));
+    clarificationModalInstance.show();
+}
+
+function getBuildingInfo() {
+    const address = document.getElementById('site_address').value;
+    if (!address.trim()) {
+        alert('Please enter a site address first.');
+        return;
+    }
+    
+    const buildingInfoCard = document.getElementById('buildingInfoCard');
+    const buildingInfoContent = document.getElementById('buildingInfoContent');
+    
+    buildingInfoContent.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-success" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Getting building information...</p>
+        </div>
+    `;
+    buildingInfoCard.style.display = 'block';
+    
+    fetch('{{ url_for("api.get_building_info") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ address: address })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success && result.data) {
+            const data = result.data;
+            buildingInfoContent.innerHTML = `
+                <div class="mb-2">
+                    <strong>${data.name || 'Building'}</strong>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">${data.formatted_address}</small>
+                </div>
+                <div class="mb-2">
+                    <span class="badge bg-info">${data.types ? data.types[0] : 'Building'}</span>
+                </div>
+                <div class="mb-2">
+                    <small>Estimated Size: <strong>${data.estimated_size} sqm</strong></small>
+                </div>
+                <button class="btn btn-sm btn-success" onclick="useBuildingInfo('${data.estimated_size}')">
+                    Use This Information
+                </button>
+            `;
+        } else {
+            buildingInfoContent.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Could not retrieve building information. Please enter details manually.
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        buildingInfoContent.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                Error retrieving building information.
+            </div>
+        `;
+    });
+}
+
+function useBuildingInfo(size) {
+    document.getElementById('building_size').value = size;
+    document.getElementById('buildingInfoCard').style.display = 'none';
+}
+
+function analyzeRequirements(clarificationAnswers = null, questionsOnly = false, suppressClarifications = false) {
+    const formData = new FormData(document.getElementById('quoteForm'));
+    const data = {};
+    
+    for (let [key, value] of formData.entries()) {
+        if (key === 'wifi_requirements' || key === 'cctv_requirements' || key === 'door_entry_requirements') {
+            data[key] = true;
+        } else {
+            data[key] = value;
+        }
+    }
+    
+    if (!data.wifi_requirements) data.wifi_requirements = false;
+    if (!data.cctv_requirements) data.cctv_requirements = false;
+    if (!data.door_entry_requirements) data.door_entry_requirements = false;
+    
+    const analysisCard = document.getElementById('analysisCard');
+    const analysisContent = document.getElementById('analysisContent');
+    
+    analysisCard.style.display = 'block';
+    
+    if (clarificationAnswers) {
+        data['clarification_answers'] = clarificationAnswers;
+    }
+    if (questionsOnly) {
+        data['questions_only'] = true;
+    }
+    if (suppressClarifications) {
+        data['suppress_clarifications'] = true;
+    }
+
+    // Show loading indicator
+    analysisContent.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">AI is analyzing your requirements...</p>
+            <small class="text-muted">This may take a few moments. Please don't click the button again.</small>
+        </div>
+    `;
+
+    fetch('{{ url_for("api.analyze_requirements") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success && result.data) {
+            const analysis = result.data || {};
+            if (questionsOnly) {
+                const clarifications = analysis.clarifications || [];
+                const analysisContent = document.getElementById('analysisContent');
+                if (clarifications.length > 0) {
+                    renderClarificationModal(clarifications);
+                    analysisContent.innerHTML = `
+                        <div class="alert alert-info mb-0">
+                            <strong>Clarifications required:</strong>
+                            <ul class="mb-2">
+                                ${clarifications.map(q => `<li>${q}</li>`).join('')}
+                            </ul>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm btn-primary" onclick="showClarificationModalFromAlert()">
+                                    <i class="fas fa-edit"></i> Answer questions
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="runAnalysisWithoutAnswers()">
+                                    <i class="fas fa-forward"></i> Continue without answers
+                                </button>
+                            </div>
+                            <small class="text-muted d-block mt-2">Provide answers now or continue without them; you can re-run AI after submitting answers.</small>
+                        </div>
+                    `;
+                } else {
+                    analyzeRequirements(null, false, false);
+                }
+                return;
+            }
+            if (suppressClarifications) {
+                analysis.clarifications = [];
+            }
+            renderAnalysis(analysis);
+        } else {
+            const errorMessage = result.error || 'Could not analyze requirements. Please check your API settings.';
+            analysisContent.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>AI Analysis Failed:</strong><br>
+                    ${errorMessage}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        analysisContent.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                Error analyzing requirements.
+            </div>
+        `;
+    });
+}
+
+let lastClarifications = [];
+let clarificationResponses = [];
+
+function renderAnalysis(analysis) {
+    try {
+        console.log('Rendering analysis:', analysis);
+        const analysisContent = document.getElementById('analysisContent');
+        let html = '';
+
+        document.getElementById('aiSummaryCard').style.display = 'block';
+        document.getElementById('aiAnalysisSummary').textContent = analysis.analysis || 'No analysis provided.';
+        document.getElementById('aiSummaryStatus').textContent = analysis.clarifications && analysis.clarifications.length ? 'Needs Clarification' : 'Complete';
+        document.getElementById('ai_analysis_text').value = analysis.analysis || '';
+        document.getElementById('ai_products_json').value = JSON.stringify(analysis.products || []);
+        document.getElementById('ai_labour_json').value = JSON.stringify(analysis.labour_breakdown || []);
+        document.getElementById('ai_alternatives_json').value = JSON.stringify(analysis.alternatives || []);
+        document.getElementById('ai_quotation_json').value = JSON.stringify(analysis.quotation || {});
+        document.getElementById('ai_estimated_time').value = analysis.estimated_time || '';
+        document.getElementById('travel_distance_km').value = analysis.travel_distance_km || '';
+        document.getElementById('travel_time_minutes').value = analysis.travel_time_minutes || '';
+        
+        // Store raw AI response for database storage
+        const rawResponseField = document.getElementById('ai_raw_response');
+        if (rawResponseField) {
+            rawResponseField.value = analysis.ai_raw_response || '';
+        }
+        updateTravelSummary(analysis);
+        populateSummaryCard(analysis);
+
+        // Show ALL JSON data first for debugging
+        html += `<div class="mb-3">
+            <details>
+                <summary><strong>Full AI Response (Debug)</strong></summary>
+                <pre class="mt-2 p-2 bg-light border rounded" style="font-size: 0.8em; max-height: 300px; overflow-y: auto;">${JSON.stringify(analysis, null, 2)}</pre>
+            </details>
+        </div>`;
+
+        // Travel Information
+        if (analysis.travel_distance_km || analysis.travel_distance_miles) {
+            const distance = analysis.travel_distance_miles || (analysis.travel_distance_km * 0.621371);
+            html += `<div class="mb-3">
+                <strong>Travel Information:</strong><br>
+                Distance: ${distance.toFixed(1)} miles<br>
+                Travel Time: ${analysis.travel_time_minutes ? Math.round(analysis.travel_time_minutes / 60 * 10) / 10 + ' hours' : 'Not calculated'}<br>
+                Travel Cost: £${analysis.travel_cost ? analysis.travel_cost.toFixed(2) : 'Not calculated'}
+            </div>`;
+        }
+
+    if (analysis.analysis) {
+        html += `<div class="mb-3"><strong>Analysis:</strong><br>${analysis.analysis}</div>`;
+    }
+    if (Array.isArray(analysis.products) && analysis.products.length > 0) {
+        html += '<div class="mb-3"><strong>Recommended Products:</strong><table class="table table-sm">';
+        html += '<thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Notes</th></tr></thead><tbody>';
+        analysis.products.forEach(product => {
+            if (typeof product === 'object' && product) {
+                const name = product.item || product.name || 'Product';
+                const qty = product.quantity || 1;
+                const unitPrice = product.unit_price ? `£${product.unit_price.toFixed(2)}` : 'TBD';
+                const totalPrice = product.total_price ? `£${product.total_price.toFixed(2)}` : 'TBD';
+                const notes = product.notes || '';
+                html += `<tr>
+                    <td>${name}</td>
+                    <td>${qty}</td>
+                    <td>${unitPrice}</td>
+                    <td>${totalPrice}</td>
+                    <td>${notes}</td>
+                </tr>`;
+            } else {
+                html += `<tr><td colspan="5">${formatAnalysisItem(product)}</td></tr>`;
+            }
+        });
+        html += '</tbody></table></div>';
+    }
+    if (analysis.estimated_time) {
+        html += `<div class="mb-3"><strong>Estimated Time:</strong> ${analysis.estimated_time} days</div>`;
+    }
+    if (Array.isArray(analysis.labour_breakdown) && analysis.labour_breakdown.length > 0) {
+        html += `<div class="mb-3"><strong>Labour Breakdown:</strong><ul>`;
+        analysis.labour_breakdown.forEach(item => {
+            if (typeof item === 'object' && item) {
+                const task = item.task || item.name || 'Labour';
+                const days = item.days !== undefined ? `${item.days} days` : '';
+                const engineers = item.engineer_count !== undefined ? ` — Engineers: ${item.engineer_count}` : '';
+                const rate = item.day_rate !== undefined ? ` — Day Rate: £${Number(item.day_rate).toFixed(2)}` : '';
+                const cost = item.cost !== undefined ? ` — Cost: £${Number(item.cost).toFixed(2)}` : '';
+                const notes = item.notes ? ` — ${item.notes}` : '';
+                html += `<li><strong>${task}</strong>: ${days}${engineers}${rate}${cost}${notes}</li>`;
+            } else {
+                html += `<li>${formatAnalysisItem(item)}</li>`;
+            }
+        });
+        html += `</ul></div>`;
+    }
+    if (Array.isArray(analysis.alternatives) && analysis.alternatives.length > 0) {
+        html += `<div class="mb-3"><strong>Alternatives:</strong><ul>`;
+        analysis.alternatives.forEach(alt => {
+            if (typeof alt === 'object' && alt) {
+                const solution = alt.solution || alt.option || alt.name || 'Alternative';
+                const pros = alt.pros ? `Pros: ${alt.pros}` : '';
+                const cons = alt.cons ? `Cons: ${alt.cons}` : '';
+                html += `<li><strong>${solution}</strong> ${[pros, cons].filter(Boolean).join(' — ')}</li>`;
+            } else {
+                html += `<li>${formatAnalysisItem(alt)}</li>`;
+            }
+        });
+        html += `</ul></div>`;
+    }
+
+    lastClarifications = Array.isArray(analysis.clarifications) ? analysis.clarifications : [];
+    if (lastClarifications.length > 0) {
+        html += `<div class="alert alert-info"><strong>Clarifications needed:</strong><form id="clarificationForm" class="mt-2">`;
+        lastClarifications.forEach((question, index) => {
+            html += `
+                <div class="mb-3">
+                    <label class="form-label">${question}</label>
+                    <textarea class="form-control clarification-input" data-index="${index}" rows="2" placeholder="Answer (optional)"></textarea>
+                </div>
+            `;
+        });
+        html += `
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary" onclick="continueWithoutClarifications()">
+                    Continue without answers
+                </button>
+                <button type="button" class="btn btn-primary" onclick="resubmitWithClarifications()">
+                    Submit answers &amp; re-run AI
+                </button>
+            </div>
+        </form></div>`;
+    }
+
+    if (analysis.quotation) {
+        html += renderQuotation(analysis.quotation);
+    }
+
+    html += `<div id="clarificationProvided"></div>`;
+
+    analysisContent.innerHTML = html || '<div class="text-muted">No analysis available.</div>';
+    attachClarificationListeners();
+    renderClarificationProvided();
+    
+    // Auto-populate left-hand form fields from AI analysis
+    if (analysis.quotation && analysis.quotation.client_requirement) {
+        // Don't overwrite the original project description - keep it as is
+        // The AI analysis will be shown in the analysis panel instead
+    }
+    if (analysis.quotation && analysis.quotation.scope_of_works) {
+        // Populate building details if available from scope
+        const scopeArray = Array.isArray(analysis.quotation.scope_of_works) 
+            ? analysis.quotation.scope_of_works 
+            : [analysis.quotation.scope_of_works];
+        const scope = scopeArray.join(' ');
+        if (scope.toLowerCase().includes('office')) {
+            document.getElementById('building_type').value = 'office';
+        }
+    }
+    if (analysis.estimated_time) {
+        // Convert hours to days for display
+        const days = Math.ceil(analysis.estimated_time / 8);
+        console.log(`Estimated time: ${analysis.estimated_time} hours (${days} days)`);
+    }
+    
+    // Display travel info if available
+    if (analysis.travel_time_hours !== undefined && analysis.travel_cost !== undefined) {
+        console.log(`Travel: ${analysis.travel_time_hours.toFixed(1)} hours, £${analysis.travel_cost.toFixed(2)}`);
+    }
+    } catch (error) {
+        console.error('Error in renderAnalysis:', error);
+        const analysisContent = document.getElementById('analysisContent');
+        analysisContent.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                Error rendering analysis: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function populateSummaryCard(analysis) {
+    try {
+        console.log('Populating summary card with:', analysis);
+        const productsList = document.getElementById('aiProductsList');
+        const scopeList = document.getElementById('aiScopeList');
+        const labourList = document.getElementById('aiLabourList');
+        const materialsList = document.getElementById('aiMaterialsList');
+        const assumptionsList = document.getElementById('aiAssumptionsList');
+        const alternativesList = document.getElementById('aiAlternativesList');
+        const labourSummary = document.getElementById('aiLabourSummary');
+        
+        if (!productsList || !scopeList || !labourList || !materialsList || !assumptionsList || !alternativesList || !labourSummary) {
+            console.error('Missing DOM elements for summary card');
+            return;
+        }
+        
+        productsList.innerHTML = '';
+        scopeList.innerHTML = '';
+        labourList.innerHTML = '';
+        materialsList.innerHTML = '';
+        assumptionsList.innerHTML = '';
+        alternativesList.innerHTML = '';
+
+    if (Array.isArray(analysis.products)) {
+        analysis.products.forEach(product => {
+            if (product && typeof product === 'object') {
+                const name = product.item || product.name || 'Product';
+                const qty = product.quantity !== undefined ? `Qty: ${product.quantity}` : '';
+                const notes = product.notes ? `(${product.notes})` : '';
+                productsList.innerHTML += `<li><strong>${name}</strong> ${qty} ${notes}</li>`;
+            }
+        });
+    }
+
+    const quotation = analysis.quotation || {};
+    if (Array.isArray(quotation.scope_of_works)) {
+        quotation.scope_of_works.forEach(item => scopeList.innerHTML += `<li>${item}</li>`);
+    }
+    if (Array.isArray(quotation.materials)) {
+        quotation.materials.forEach(item => {
+            if (item && typeof item === 'object') {
+                const name = item.item || item.name || 'Material';
+                const qty = item.quantity !== undefined ? `Qty: ${item.quantity}` : '';
+                const notes = item.notes ? `(${item.notes})` : '';
+                materialsList.innerHTML += `<li><strong>${name}</strong> ${qty} ${notes}</li>`;
+            }
+        });
+    }
+    if (quotation.labour) {
+        labourSummary.textContent = `Engineers: ${quotation.labour.engineers || 0}, Days: ${quotation.labour.days || 0}, Day Rate: £${quotation.labour.day_rate || 0}, Total: £${quotation.labour.total_cost || 0}`;
+    } else {
+        labourSummary.textContent = '';
+    }
+    if (Array.isArray(analysis.labour_breakdown)) {
+        analysis.labour_breakdown.forEach(item => {
+            if (item && typeof item === 'object') {
+                const task = item.task || item.name || 'Task';
+                const days = item.days !== undefined ? ` (${item.days} days)` : '';
+                const notes = item.notes ? ` - ${item.notes}` : '';
+                labourList.innerHTML += `<li><strong>${task}</strong>: ${days}${notes}</li>`;
+            }
+        });
+    }
+    if (Array.isArray(quotation.assumptions_exclusions)) {
+        quotation.assumptions_exclusions.forEach(item => assumptionsList.innerHTML += `<li>${item}</li>`);
+    }
+    if (Array.isArray(analysis.alternatives)) {
+        analysis.alternatives.forEach(item => {
+            if (item && typeof item === 'object') {
+                const solution = item.solution || item.option || item.name || 'Alternative';
+                const pros = item.pros ? `Pros: ${item.pros}` : '';
+                const cons = item.cons ? `Cons: ${item.cons}` : '';
+                alternativesList.innerHTML += `<li><strong>${solution}</strong> ${[pros, cons].filter(Boolean).join(' — ')}</li>`;
+            }
+        });
+    }
+    } catch (error) {
+        console.error('Error in populateSummaryCard:', error);
+    }
+}
+
+function gatherClarificationAnswers() {
+    const inputs = document.querySelectorAll('.clarification-input');
+    const answers = [];
+    inputs.forEach((textarea, idx) => {
+        const answer = textarea.value.trim();
+        answers.push({
+            question: lastClarifications[idx] || '',
+            answer: answer
+        });
+    });
+    document.getElementById('clarifications_log_input').value = JSON.stringify(answers);
+    return answers;
+}
+
+function continueWithoutClarifications() {
+    const answers = gatherClarificationAnswers();
+    clarificationResponses = answers;
+    document.getElementById('clarifications_log_input').value = JSON.stringify(clarificationResponses);
+    analyzeRequirements(answers, false, true);
+}
+
+function resubmitWithClarifications() {
+    const answers = gatherClarificationAnswers();
+    clarificationResponses = answers;
+    document.getElementById('clarifications_log_input').value = JSON.stringify(clarificationResponses);
+    analyzeRequirements(answers, false, true);
+}
+
+function formatAnalysisItem(item) {
+    if (!item) {
+        return '';
+    }
+    if (typeof item === 'string') {
+        return item;
+    }
+    if (Array.isArray(item)) {
+        return item.map(formatAnalysisItem).join(', ');
+    }
+    if (typeof item === 'object') {
+        const parts = [];
+        const name = item.name || item.item || item.model;
+        if (name) parts.push(name);
+        if (item.quantity !== undefined) parts.push(`Qty: ${item.quantity}`);
+        if (item.notes) parts.push(item.notes);
+        if (item.description) parts.push(item.description);
+        if (item.pros) parts.push(`Pros: ${item.pros}`);
+        if (item.cons) parts.push(`Cons: ${item.cons}`);
+        return parts.length ? parts.join(' — ') : JSON.stringify(item);
+    }
+    return String(item);
+}
+
+function formatAlternatives(alt) {
+    if (!alt) {
+        return '';
+    }
+    if (typeof alt === 'string') {
+        return alt;
+    }
+    if (typeof alt === 'object') {
+        const solution = alt.solution || alt.option || alt.name || 'Alternative';
+        const pros = alt.pros ? `Pros: ${alt.pros}` : '';
+        const cons = alt.cons ? `Cons: ${alt.cons}` : '';
+        return [solution, pros, cons].filter(Boolean).join(' — ');
+    }
+    return String(alt);
+}
+
+function attachClarificationListeners() {
+    clarificationResponses = lastClarifications.map(question => {
+        const existing = clarificationResponses.find(entry => entry.question === question) || { question, answer: '' };
+        return { ...existing };
+    });
+
+    document.querySelectorAll('.clarification-input').forEach((input, idx) => {
+        input.value = clarificationResponses[idx]?.answer || '';
+        input.addEventListener('input', () => {
+            clarificationResponses[idx] = {
+                question: lastClarifications[idx] || '',
+                answer: input.value.trim()
+            };
+            renderClarificationProvided();
+        });
+    });
+}
+
+function renderClarificationProvided() {
+    const container = document.getElementById('clarificationProvided');
+    if (!container) return;
+
+    const answered = clarificationResponses.filter(entry => entry.answer);
+    if (answered.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = `<div class="card border-info mt-3"><div class="card-body"><h6>Clarifications provided</h6><ul class="mb-0">`;
+    answered.forEach(entry => {
+        html += `<li><strong>${entry.question}</strong><br><span class="text-muted">${entry.answer}</span></li>`;
+    });
+    html += `</ul></div></div>`;
+    container.innerHTML = html;
+}
+
+function renderQuotation(quotation) {
+    const scope = Array.isArray(quotation.scope_of_works) ? quotation.scope_of_works : [];
+    const materials = Array.isArray(quotation.materials) ? quotation.materials : [];
+    const assumptions = Array.isArray(quotation.assumptions_exclusions) ? quotation.assumptions_exclusions : [];
+    const labour = quotation.labour || {};
+
+    let html = `<div class="card border-primary mb-3"><div class="card-body">`;
+    html += `<h5 class="card-title"><i class="fas fa-file-invoice"></i> Structured Cabling Quotation</h5>`;
+    if (quotation.client_requirement) {
+        html += `<p><strong>Client Requirement:</strong><br>${quotation.client_requirement}</p>`;
+    }
+    if (scope.length) {
+        html += `<h6>Scope of Works</h6><ul>`;
+        scope.forEach(item => { html += `<li>${item}</li>`; });
+        html += `</ul>`;
+    }
+    if (materials.length) {
+        html += `<h6>Materials (estimated)</h6><ul>`;
+        materials.forEach(item => {
+            if (typeof item === 'object' && item) {
+                const name = item.item || item.name || 'Material';
+                const qty = item.quantity !== undefined ? `Qty: ${item.quantity}` : '';
+                const notes = item.notes ? `(${item.notes})` : '';
+                html += `<li><strong>${name}</strong>${qty ? ` — ${qty}` : ''} ${notes}</li>`;
+            } else {
+                html += `<li>${item}</li>`;
+            }
+        });
+        html += `</ul>`;
+    }
+    if (Object.keys(labour).length) {
+        const engineers = labour.engineers || labour.engineer_count;
+        const hours = labour.hours || labour.estimated_hours;
+        const rate = labour.day_rate ? `£${Number(labour.day_rate).toFixed(2)}` : '';
+        const total = labour.total_cost ? `£${Number(labour.total_cost).toFixed(2)}` : '';
+        html += `<h6>Labour Estimate</h6><ul>`;
+        if (engineers) html += `<li>Engineers: ${engineers}</li>`;
+        if (hours) html += `<li>Estimated Hours/Days: ${hours}</li>`;
+        if (rate) html += `<li>Day Rate: ${rate}</li>`;
+        if (total) html += `<li>Total Labour Cost: ${total}</li>`;
+        if (labour.notes) html += `<li>Notes: ${labour.notes}</li>`;
+        html += `</ul>`;
+    }
+    if (assumptions.length) {
+        html += `<h6>Assumptions & Exclusions</h6><ul>`;
+        assumptions.forEach(item => { html += `<li>${item}</li>`; });
+        html += `</ul>`;
+    }
+    html += `</div></div>`;
+    return html;
+}
+
+function updateTravelSummary(analysis) {
+    const travelSection = document.getElementById('aiTravelSection');
+    const travelExportSection = document.getElementById('travelExportSection');
+    const travelDistance = document.getElementById('travelDistance');
+    const travelTime = document.getElementById('travelTime');
+    const travelCost = document.getElementById('travelCost');
+    const travelOrigin = document.getElementById('aiTravelOrigin');
+
+    if (analysis.travel_distance_km || analysis.travel_time_minutes || analysis.travel_cost) {
+        travelSection.style.display = 'block';
+        travelExportSection.style.display = 'block';
+        
+        // Display distance
+        if (analysis.travel_distance_km) {
+            travelDistance.textContent = `${analysis.travel_distance_miles.toFixed(1)} miles`;
+        } else {
+            travelDistance.textContent = 'Not calculated';
+        }
+        
+        // Display travel time
+        if (analysis.travel_time_minutes) {
+            const hours = Math.floor(analysis.travel_time_minutes / 60);
+            const minutes = Math.round(analysis.travel_time_minutes % 60);
+            travelTime.textContent = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+        } else {
+            travelTime.textContent = 'Not calculated';
+        }
+        
+        // Display travel cost
+        if (analysis.travel_cost) {
+            travelCost.textContent = `£${analysis.travel_cost.toFixed(2)}`;
+        } else {
+            travelCost.textContent = 'Not calculated';
+        }
+        
+        travelOrigin.textContent = analysis.travel_origin ? `From: ${analysis.travel_origin}` : '';
+    } else {
+        travelSection.style.display = 'none';
+        travelExportSection.style.display = 'none';
+        travelDistance.textContent = '';
+        travelTime.textContent = '';
+        travelCost.textContent = '';
+        travelOrigin.textContent = '';
+    }
+}
+
+// Customer Management Functions
+function loadCustomers() {
+    fetch('/crm/api/crm/customers/search')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('customer_select');
+            select.innerHTML = '<option value="">Select existing customer or create new...</option>';
+            
+            if (data.success && data.customers) {
+                data.customers.forEach(customer => {
+                    const option = document.createElement('option');
+                    option.value = customer.id;
+                    option.textContent = `${customer.name} (${customer.status})`;
+                    select.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading customers:', error);
+        });
+}
+
+function loadCustomerDetails(customerId) {
+    fetch(`/crm/customer/${customerId}`)
+        .then(response => response.text())
+        .then(html => {
+            // Parse the customer details from the response
+            // For now, we'll just populate the basic fields
+            // In a real implementation, you might want to create a dedicated API endpoint
+            console.log('Customer selected:', customerId);
+        })
+        .catch(error => {
+            console.error('Error loading customer details:', error);
+        });
+}
+
+function openCreateCustomerModal() {
+    // Create a simple modal for creating a new customer
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Customer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createCustomerForm">
+                        <div class="mb-3">
+                            <label for="customer_name" class="form-label">Company Name *</label>
+                            <input type="text" class="form-control" id="customer_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="customer_website" class="form-label">Website</label>
+                            <input type="url" class="form-control" id="customer_website">
+                        </div>
+                        <div class="mb-3">
+                            <label for="customer_phone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="customer_phone">
+                        </div>
+                        <div class="mb-3">
+                            <label for="customer_email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="customer_email">
+                        </div>
+                        <div class="mb-3">
+                            <label for="customer_address" class="form-label">Address</label>
+                            <textarea class="form-control" id="customer_address" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createCustomer()">Create Customer</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+    
+    // Clean up modal when hidden
+    modal.addEventListener('hidden.bs.modal', () => {
+        document.body.removeChild(modal);
+    });
+}
+
+function createCustomer() {
+    const form = document.getElementById('createCustomerForm');
+    const formData = new FormData(form);
+    
+    const customerData = {
+        name: document.getElementById('customer_name').value,
+        website: document.getElementById('customer_website').value,
+        phone: document.getElementById('customer_phone').value,
+        email: document.getElementById('customer_email').value,
+        address: document.getElementById('customer_address').value,
+        source: 'Quote Creation'
+    };
+    
+    fetch('/crm/customers/new', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(customerData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            const modal = document.querySelector('.modal');
+            const bsModal = bootstrap.Modal.getInstance(modal);
+            bsModal.hide();
+            
+            // Reload customers and select the new one
+            loadCustomers();
+            
+            // Auto-select the new customer
+            setTimeout(() => {
+                const select = document.getElementById('customer_select');
+                const newOption = Array.from(select.options).find(option => option.value == data.customer_id);
+                if (newOption) {
+                    select.value = data.customer_id;
+                    loadCustomerDetails(data.customer_id);
+                }
+            }, 500);
+            
+            alert('Customer created successfully!');
+        } else {
+            alert('Error creating customer: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error creating customer');
+    });
+}
+</script>
+{% endblock %}

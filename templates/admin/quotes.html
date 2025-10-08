@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Quotes - CCS Quote Tool{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-file-invoice text-primary"></i> Manage All Quotes
+        </h1>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               placeholder="Client name or quote number..." value="{{ request.args.get('search', '') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">All Status</option>
+                            <option value="draft" {% if request.args.get('status') == 'draft' %}selected{% endif %}>Draft</option>
+                            <option value="sent" {% if request.args.get('status') == 'sent' %}selected{% endif %}>Sent</option>
+                            <option value="accepted" {% if request.args.get('status') == 'accepted' %}selected{% endif %}>Accepted</option>
+                            <option value="declined" {% if request.args.get('status') == 'declined' %}selected{% endif %}>Declined</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="date_from" class="form-label">From Date</label>
+                        <input type="date" class="form-control" id="date_from" name="date_from" 
+                               value="{{ request.args.get('date_from', '') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="date_to" class="form-label">To Date</label>
+                        <input type="date" class="form-control" id="date_to" name="date_to" 
+                               value="{{ request.args.get('date_to', '') }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid gap-2 d-md-flex">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Filter
+                            </button>
+                            <a href="{{ url_for('admin.manage_quotes') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quotes Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-table"></i> All Quotes
+                    <span class="badge bg-secondary ms-2">{{ quotes.total }}</span>
+                </h5>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-success" onclick="exportQuotes()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="bulkActions()">
+                        <i class="fas fa-tasks"></i> Bulk Actions
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if quotes.items %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                </th>
+                                <th>Quote Number</th>
+                                <th>Client</th>
+                                <th>Project</th>
+                                <th>Status</th>
+                                <th>Estimated Cost</th>
+                                <th>Created</th>
+                                <th>Created By</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for quote in quotes.items %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="quote-checkbox" value="{{ quote.id }}">
+                                </td>
+                                <td>
+                                    <span class="quote-number">{{ quote.quote_number }}</span>
+                                </td>
+                                <td>{{ quote.client_name }}</td>
+                                <td>
+                                    <div class="text-truncate" style="max-width: 200px;" title="{{ quote.project_title }}">
+                                        {{ quote.project_title }}
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if quote.status == 'draft' %}
+                                        <span class="badge bg-secondary status-badge">Draft</span>
+                                    {% elif quote.status == 'sent' %}
+                                        <span class="badge bg-primary status-badge">Sent</span>
+                                    {% elif quote.status == 'accepted' %}
+                                        <span class="badge bg-success status-badge">Accepted</span>
+                                    {% elif quote.status == 'declined' %}
+                                        <span class="badge bg-danger status-badge">Declined</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if quote.estimated_cost %}
+                                        £{{ "%.2f"|format(quote.estimated_cost) }}
+                                    {% else %}
+                                        <span class="text-muted">TBD</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ quote.created_at.strftime('%d/%m/%Y') }}</td>
+                                <td>{{ quote.creator.username }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('main.view_quote', quote_id=quote.id) }}" 
+                                           class="btn btn-outline-primary" title="View">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('main.generate_document', quote_id=quote.id) }}" 
+                                           class="btn btn-outline-success" title="Generate Document">
+                                            <i class="fas fa-file-word"></i>
+                                        </a>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" 
+                                                    data-bs-toggle="dropdown" title="More Actions">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ url_for('main.send_quote', quote_id=quote.id) }}">
+                                                        <i class="fas fa-envelope"></i> Send Quote
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a class="dropdown-item" href="#" onclick="duplicateQuote({{ quote.id }})">
+                                                        <i class="fas fa-copy"></i> Duplicate
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item text-danger" href="#" onclick="deleteQuote({{ quote.id }})">
+                                                        <i class="fas fa-trash"></i> Delete
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if quotes.pages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Quote pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if quotes.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.manage_quotes', page=quotes.prev_num, **request.args) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in quotes.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != quotes.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('admin.manage_quotes', page=page_num, **request.args) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                    {% endif %}
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">…</span>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if quotes.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin.manage_quotes', page=quotes.next_num, **request.args) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No quotes found</h5>
+                    <p class="text-muted">
+                        {% if request.args %}
+                            Try adjusting your filters or 
+                        {% endif %}
+                        <a href="{{ url_for('main.create_quote') }}">create your first quote</a>.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.quote-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+function exportQuotes() {
+    // This would implement quote export functionality
+    alert('Export functionality coming soon!');
+}
+
+function bulkActions() {
+    const selectedQuotes = Array.from(document.querySelectorAll('.quote-checkbox:checked')).map(cb => cb.value);
+    
+    if (selectedQuotes.length === 0) {
+        alert('Please select quotes to perform bulk actions.');
+        return;
+    }
+    
+    // This would implement bulk actions
+    alert(`Bulk actions for ${selectedQuotes.length} quotes coming soon!`);
+}
+
+function duplicateQuote(quoteId) {
+    if (confirm('Create a duplicate of this quote?')) {
+        // This would implement quote duplication
+        alert('Quote duplication feature coming soon!');
+    }
+}
+
+function deleteQuote(quoteId) {
+    if (confirm('Are you sure you want to delete this quote? This action cannot be undone.')) {
+        fetch(`/admin/quotes/${quoteId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the quote.');
+        });
+    }
+}
+</script>
+{% endblock %}
+
+
