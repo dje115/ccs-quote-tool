@@ -30,6 +30,160 @@ class ExternalDataService:
             print(f"Error getting API key for {service_name}: {e}")
             return None
     
+    def _parse_ixbrl_document(self, content: str) -> Dict[str, Any]:
+        """Parse iXBRL document to extract financial data"""
+        try:
+            import xml.etree.ElementTree as ET
+            import re
+            
+            financial_data = {}
+            
+            # Parse the XML content
+            root = ET.fromstring(content)
+            
+            # Define namespace mappings for iXBRL
+            namespaces = {
+                'ix': 'http://www.xbrl.org/2013/inlineXBRL',
+                'xbrli': 'http://www.xbrl.org/2003/instance',
+                'core': 'http://xbrl.frc.org.uk/fr/2023-01-01/core',
+                'bus': 'http://xbrl.frc.org.uk/general/2023-01-01/common'
+            }
+            
+            # Extract financial data using XBRL tags
+            # Net Assets / Shareholders' Funds
+            net_assets_elements = root.findall('.//ix:nonFraction[@name="core:NetAssetsLiabilities"]', namespaces)
+            if net_assets_elements:
+                # Get the most recent year's data (usually the first one)
+                for elem in net_assets_elements[:1]:
+                    try:
+                        value = float(elem.text.replace(',', ''))
+                        financial_data['net_assets'] = value
+                        break
+                    except:
+                        continue
+            
+            # Cash at Bank
+            cash_elements = root.findall('.//ix:nonFraction[@name="core:CashBankOnHand"]', namespaces)
+            if cash_elements:
+                for elem in cash_elements[:1]:
+                    try:
+                        value = float(elem.text.replace(',', ''))
+                        financial_data['cash_at_bank'] = value
+                        break
+                    except:
+                        continue
+            
+            # Total Equity
+            equity_elements = root.findall('.//ix:nonFraction[@name="core:Equity"]', namespaces)
+            if equity_elements:
+                for elem in equity_elements[:1]:
+                    try:
+                        value = float(elem.text.replace(',', ''))
+                        financial_data['total_equity'] = value
+                        break
+                    except:
+                        continue
+            
+            # Property, Plant & Equipment
+            ppe_elements = root.findall('.//ix:nonFraction[@name="core:PropertyPlantEquipment"]', namespaces)
+            if ppe_elements:
+                for elem in ppe_elements[:1]:
+                    try:
+                        value = float(elem.text.replace(',', ''))
+                        financial_data['ppe'] = value
+                        break
+                    except:
+                        continue
+            
+            # Trade Debtors
+            debtors_elements = root.findall('.//ix:nonFraction[@name="core:TradeDebtorsTradeReceivables"]', namespaces)
+            if debtors_elements:
+                for elem in debtors_elements[:1]:
+                    try:
+                        value = float(elem.text.replace(',', ''))
+                        financial_data['trade_debtors'] = value
+                        break
+                    except:
+                        continue
+            
+            # Other Debtors
+            other_debtors_elements = root.findall('.//ix:nonFraction[@name="core:OtherDebtors"]', namespaces)
+            if other_debtors_elements:
+                for elem in other_debtors_elements[:1]:
+                    try:
+                        value = float(elem.text.replace(',', ''))
+                        financial_data['other_debtors'] = value
+                        break
+                    except:
+                        continue
+            
+            # Average Number of Employees
+            employees_elements = root.findall('.//ix:nonFraction[@name="core:AverageNumberEmployeesDuringPeriod"]', namespaces)
+            if employees_elements:
+                for elem in employees_elements[:1]:
+                    try:
+                        value = int(float(elem.text))
+                        financial_data['employees'] = value
+                        break
+                    except:
+                        continue
+            
+            # Share Capital - use a simpler approach
+            share_capital_elements = root.findall('.//ix:nonFraction[@name="core:Equity"]', namespaces)
+            if share_capital_elements:
+                for elem in share_capital_elements[:1]:
+                    try:
+                        value = float(elem.text.replace(',', ''))
+                        financial_data['share_capital'] = value
+                        break
+                    except:
+                        continue
+            
+            # Try alternative parsing if XBRL tags don't work
+            if not financial_data:
+                # Fallback: parse using regex patterns on the text content
+                financial_data = self._extract_financial_data_regex(content)
+            
+            return financial_data
+            
+        except Exception as e:
+            print(f"Error parsing iXBRL document: {e}")
+            return {}
+    
+    def _extract_financial_data_regex(self, content: str) -> Dict[str, Any]:
+        """Extract financial data using regex patterns as fallback"""
+        try:
+            financial_data = {}
+            import re
+            
+            # Look for financial figures in the content using regex
+            patterns = {
+                'net_assets': [r'Net assets.*?£([\d,]+)', r'Total equity.*?£([\d,]+)'],
+                'cash_at_bank': [r'Cash at bank.*?£([\d,]+)', r'CashBankOnHand.*?([\d,]+)'],
+                'trade_debtors': [r'Trade debtors.*?£([\d,]+)', r'TradeDebtors.*?([\d,]+)'],
+                'employees': [r'Average.*?employees.*?(\d+)', r'AverageNumberEmployees.*?(\d+)'],
+                'share_capital': [r'Share capital.*?£([\d,]+)', r'Called up share capital.*?£([\d,]+)']
+            }
+            
+            for key, pattern_list in patterns.items():
+                for pattern in pattern_list:
+                    matches = re.findall(pattern, content, re.IGNORECASE | re.DOTALL)
+                    if matches:
+                        try:
+                            if key == 'employees':
+                                financial_data[key] = int(matches[0])
+                            else:
+                                financial_data[key] = float(matches[0].replace(',', ''))
+                            break
+                        except:
+                            continue
+            
+            return financial_data
+            
+        except Exception as e:
+            print(f"Error in regex extraction: {e}")
+            return {}
+    
     def get_linkedin_company_data(self, company_name: str, website: str = None) -> Dict[str, Any]:
         """
         Get LinkedIn company data using web scraping
@@ -294,116 +448,113 @@ class ExternalDataService:
                                 accounts_info['company_size'] = 'Large'
                                 accounts_info['estimated_revenue'] = '£36M+'
                         
-                        # Try to get detailed financial data from the filing document
+                        # Extract financial data from iXBRL documents
                         try:
+                            import re
+                            import xml.etree.ElementTree as ET
+                            
                             # Get the filing document details
                             document_url = f"{base_url}/company/{company_number}/filing-history/{filing.get('transaction_id')}"
                             doc_response = self.session.get(document_url, headers=headers, timeout=15)
                             
                             if doc_response.status_code == 200:
                                 doc_data = doc_response.json()
-                                annotations = doc_data.get('annotations', [])
                                 
-                                # Enhanced financial data extraction
-                                import re
+                                # Try to access the iXBRL document directly
+                                links = doc_data.get('links', {})
+                                document_metadata_url = links.get('document_metadata')
                                 
-                                for annotation in annotations:
-                                    ann_desc = annotation.get('description', '').lower()
-                                    
-                                    # More comprehensive financial data extraction
-                                    # Look for shareholders' funds/equity/capital and reserves
-                                    if any(term in ann_desc for term in ['shareholder', 'equity', 'capital', 'reserve', 'net assets']):
-                                        numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
-                                        if numbers:
-                                            try:
-                                                value = float(numbers[0].replace(',', ''))
-                                                year_data['shareholders_funds'] = value
-                                                if i == 0:
-                                                    accounts_info['shareholders_funds_current'] = value
-                                                    accounts_info['shareholders_funds'] = f"£{value:,.0f}"
-                                                elif i == 1:
-                                                    accounts_info['shareholders_funds_previous'] = value
-                                            except:
-                                                year_data['shareholders_funds'] = numbers[0]
-                                    
-                                    # Look for cash at bank and cash equivalents
-                                    if any(term in ann_desc for term in ['cash', 'bank', 'liquid', 'equivalent']):
-                                        numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
-                                        if numbers:
-                                            try:
-                                                value = float(numbers[0].replace(',', ''))
-                                                year_data['cash_at_bank'] = value
-                                                if i == 0:
-                                                    accounts_info['cash_at_bank_current'] = value
-                                                    accounts_info['cash_at_bank'] = f"£{value:,.0f}"
-                                                elif i == 1:
-                                                    accounts_info['cash_at_bank_previous'] = value
-                                            except:
-                                                year_data['cash_at_bank'] = numbers[0]
-                                    
-                                    # Look for turnover/revenue/sales
-                                    if any(term in ann_desc for term in ['turnover', 'revenue', 'sales', 'income']):
-                                        numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
-                                        if numbers:
-                                            try:
-                                                value = float(numbers[0].replace(',', ''))
-                                                year_data['turnover'] = value
-                                                if i == 0:
-                                                    accounts_info['turnover_current'] = value
-                                                    accounts_info['turnover'] = f"£{value:,.0f}"
-                                                elif i == 1:
-                                                    accounts_info['turnover_previous'] = value
-                                            except:
-                                                year_data['turnover'] = numbers[0]
-                                    
-                                    # Look for profit before tax
-                                    if any(term in ann_desc for term in ['profit', 'loss', 'pbt']):
-                                        numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
-                                        if numbers:
-                                            try:
-                                                value = float(numbers[0].replace(',', ''))
-                                                year_data['profit_before_tax'] = value
-                                            except:
-                                                year_data['profit_before_tax'] = numbers[0]
-                                    
-                                    # Look for net assets (alternative to shareholders' funds)
-                                    if 'net assets' in ann_desc:
-                                        numbers = re.findall(r'£?([\d,]+(?:\.\d{2})?)', ann_desc)
-                                        if numbers and not year_data.get('shareholders_funds'):
-                                            try:
-                                                value = float(numbers[0].replace(',', ''))
-                                                year_data['shareholders_funds'] = value
-                                                if i == 0:
-                                                    accounts_info['shareholders_funds_current'] = value
-                                                    accounts_info['shareholders_funds'] = f"£{value:,.0f}"
-                                                elif i == 1:
-                                                    accounts_info['shareholders_funds_previous'] = value
-                                            except:
-                                                year_data['shareholders_funds'] = numbers[0]
+                                if document_metadata_url:
+                                    try:
+                                        # Get document metadata to find the iXBRL download URL
+                                        metadata_response = self.session.get(document_metadata_url, headers=headers, timeout=10)
+                                        if metadata_response.status_code == 200:
+                                            metadata = metadata_response.json()
+                                            
+                                            # Look for document download links
+                                            doc_links = metadata.get('links', {})
+                                            if 'document' in doc_links:
+                                                doc_url = doc_links['document']
+                                                
+                                                # Try to download the iXBRL document
+                                                doc_response = self.session.get(doc_url, headers=headers, timeout=30)
+                                                if doc_response.status_code == 200:
+                                                    content_type = doc_response.headers.get('content-type', '')
+                                                    
+                                                    if 'xml' in content_type or 'html' in content_type:
+                                                        # It's likely an iXBRL document
+                                                        content = doc_response.text
+                                                        print(f"[IXBRL] Found iXBRL document for {company_number}, size: {len(content)} chars")
+                                                        
+                                                        # Parse the iXBRL document for financial data
+                                                        financial_data = self._parse_ixbrl_document(content)
+                                                        
+                                                        if financial_data:
+                                                            # Extract key financial figures
+                                                            if 'net_assets' in financial_data:
+                                                                year_data['shareholders_funds'] = financial_data['net_assets']
+                                                                if i == 0:
+                                                                    accounts_info['shareholders_funds_current'] = financial_data['net_assets']
+                                                                    accounts_info['shareholders_funds'] = f"£{financial_data['net_assets']:,.0f}"
+                                                                elif i == 1:
+                                                                    accounts_info['shareholders_funds_previous'] = financial_data['net_assets']
+                                                            
+                                                            if 'cash_at_bank' in financial_data:
+                                                                year_data['cash_at_bank'] = financial_data['cash_at_bank']
+                                                                if i == 0:
+                                                                    accounts_info['cash_at_bank_current'] = financial_data['cash_at_bank']
+                                                                    accounts_info['cash_at_bank'] = f"£{financial_data['cash_at_bank']:,.0f}"
+                                                                elif i == 1:
+                                                                    accounts_info['cash_at_bank_previous'] = financial_data['cash_at_bank']
+                                                            
+                                                            if 'total_equity' in financial_data:
+                                                                year_data['total_equity'] = financial_data['total_equity']
+                                                            
+                                                            if 'employees' in financial_data:
+                                                                year_data['employees'] = financial_data['employees']
+                                                                if i == 0:
+                                                                    accounts_info['employee_count'] = financial_data['employees']
+                                                            
+                                                            if 'trade_debtors' in financial_data:
+                                                                year_data['trade_debtors'] = financial_data['trade_debtors']
+                                                            
+                                                            print(f"[IXBRL] Extracted financial data: {financial_data}")
+                                                        else:
+                                                            print(f"[IXBRL] No financial data extracted from document")
+                                    except Exception as meta_e:
+                                        print(f"Error accessing iXBRL document: {meta_e}")
+                            
+                            # Fallback: Try to extract from filing description if no iXBRL data found
+                            if not any([year_data.get('shareholders_funds'), year_data.get('cash_at_bank')]):
+                                description = filing.get('description', '').lower()
                                 
-                                # If we didn't get data from annotations, try to get from the document metadata
-                                if not any([year_data.get('turnover'), year_data.get('shareholders_funds'), year_data.get('cash_at_bank')]):
-                                    # Try to extract from document description or other fields
-                                    doc_description = filing.get('description', '').lower()
-                                    
-                                    # Extract any financial figures from the description
-                                    financial_figures = re.findall(r'£([\d,]+(?:\.\d{2})?)', doc_description)
-                                    if financial_figures:
-                                        # Try to assign the largest figure as turnover (most common)
-                                        try:
-                                            largest_figure = max([float(f.replace(',', '')) for f in financial_figures])
-                                            if largest_figure > 1000:  # Reasonable minimum for turnover
-                                                year_data['turnover'] = largest_figure
-                                                if i == 0:
-                                                    accounts_info['turnover_current'] = largest_figure
-                                                    accounts_info['turnover'] = f"£{largest_figure:,.0f}"
-                                                elif i == 1:
-                                                    accounts_info['turnover_previous'] = largest_figure
-                                        except:
-                                            pass
+                                # Look for financial figures in the description
+                                financial_figures = re.findall(r'£([\d,]+(?:\.\d{2})?)', description)
+                                if financial_figures:
+                                    try:
+                                        # Convert to numbers and find the largest (likely to be turnover)
+                                        figure_values = [float(f.replace(',', '')) for f in financial_figures]
+                                        largest_figure = max(figure_values)
+                                        
+                                        # Only use if it's a reasonable amount (not just a small fee)
+                                        if largest_figure > 1000:
+                                            year_data['turnover'] = largest_figure
+                                            if i == 0:
+                                                accounts_info['turnover_current'] = largest_figure
+                                                accounts_info['turnover'] = f"£{largest_figure:,.0f}"
+                                            elif i == 1:
+                                                accounts_info['turnover_previous'] = largest_figure
+                                    except:
+                                        pass
+                            
+                            # Log what we found for debugging
+                            if any([year_data.get('turnover'), year_data.get('shareholders_funds'), year_data.get('cash_at_bank')]):
+                                print(f"[FINANCIAL] Found financial data for {company_number} year {i}: {year_data}")
+                            else:
+                                print(f"[FINANCIAL] No financial data found for {company_number} year {i}")
                         
                         except Exception as e:
-                            print(f"Error getting detailed filing data: {e}")
+                            print(f"Error extracting financial data: {e}")
                         
                         financial_history.append(year_data)
                     
