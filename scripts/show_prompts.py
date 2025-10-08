@@ -16,3 +16,4 @@ with app.app_context():
         print(prompt.id, prompt.prompt_type, prompt.name, prompt.is_default, prompt.is_active)
 
 
+

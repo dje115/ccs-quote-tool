@@ -43,3 +43,4 @@ with app.app_context():
     print(f'Brand preferences added/updated: {len(brand_preferences)}')
 
 
+
