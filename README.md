@@ -1,16 +1,43 @@
-# CCS Quote Tool - Version 1.0
+# CCS Quote Tool - Version 1.1
 
-A comprehensive lead generation and customer relationship management (CRM) system powered by GPT-5-mini AI, designed for IT service providers and cabling companies.
+A comprehensive lead generation and customer relationship management (CRM) system powered by GPT-5 AI, designed for IT service providers and cabling companies.
+
+## 🆕 What's New in v1.1.0
+
+### Enhanced Location Discovery
+- **Google Maps Places API v1 Integration**: Automatically discovers multiple office locations for businesses
+- **Comprehensive Address Analysis**: Finds all business locations including branches, offices, and facilities
+- **Enhanced Location Display**: Shows Google Maps data with ratings, phone numbers, and complete addresses
+- **Improved AI Location Analysis**: AI now uses Google Maps data for more accurate location intelligence
+
+### Financial Data Enhancements
+- **iXBRL Document Parsing**: Direct parsing of Companies House financial documents
+- **Multi-year Financial Analysis**: Historical financial data extraction and trend analysis
+- **Enhanced Employee Estimation**: More accurate employee count from financial filings
+- **Financial Year Calculation**: Proper financial year display (filing year - 1)
+
+### Lead Generation Improvements
+- **Background Processing**: Campaigns run in separate processes to survive Flask reloads
+- **Enhanced Competitor Analysis**: AI identifies competitors and creates dedicated campaigns
+- **Improved Deduplication**: Better duplicate detection across all campaigns
+- **Visual Lead Indicators**: Highlights leads without verified websites
+
+### UI/UX Enhancements
+- **View All Leads**: Comprehensive lead overview across all campaigns
+- **Enhanced Customer Detail Views**: Better display of financial and location data
+- **Improved Navigation**: Added "View Leads" buttons throughout the interface
+- **Financial Analysis Modals**: Detailed financial data display with multi-year history
 
 ## 🚀 Features
 
 ### Lead Generation
-- **AI-Powered Lead Discovery**: Uses GPT-5-mini with web search to find potential customers
+- **AI-Powered Lead Discovery**: Uses GPT-5 with web search to find potential customers
 - **Geographic Targeting**: Search by postcode and radius for localized leads
 - **Business Type Filtering**: Focus on IT/MSP companies, cabling services, and related businesses
 - **Real-time Campaign Processing**: Background processing ensures smooth user experience
 - **Companies House Integration**: Automatic company data enrichment
 - **LinkedIn Data Extraction**: Professional network information gathering
+- **Google Maps Location Discovery**: Automatic discovery of all business locations
 
 ### Customer Management (CRM)
 - **Lead to Customer Conversion**: Seamless conversion with data preservation
@@ -18,23 +45,27 @@ A comprehensive lead generation and customer relationship management (CRM) syste
 - **Business Intelligence**: AI-generated company analysis and opportunity assessment
 - **Interaction Tracking**: Complete history of customer communications
 - **Quote Management**: Integrated quoting system for proposals
+- **Enhanced Location Analysis**: Google Maps integration for comprehensive address data
 
 ### AI Analysis
 - **Company Profiling**: Automated business intelligence generation
 - **Technology Needs Assessment**: AI-predicted IT requirements
-- **Competitor Analysis**: Market positioning insights
+- **Competitor Analysis**: Market positioning insights and competitor campaign creation
 - **Opportunity Scoring**: Lead qualification and prioritization
 - **Risk Assessment**: Business viability evaluation
+- **Financial Health Analysis**: Multi-year financial trend analysis and health scoring
+- **Location Intelligence**: Comprehensive address and site analysis
 
 ## 🛠️ Technology Stack
 
-- **Backend**: Flask (Python)
+- **Backend**: Flask (Python 3.13)
 - **Database**: SQLite with SQLAlchemy ORM
-- **AI Engine**: OpenAI GPT-5-mini with web search capabilities
-- **Frontend**: HTML5, CSS3, JavaScript (Bootstrap)
+- **AI Engine**: OpenAI GPT-5 and GPT-5-mini with web search capabilities
+- **Frontend**: HTML5, CSS3, JavaScript (Bootstrap 5)
 - **External APIs**: 
-  - OpenAI API (GPT-5-mini)
+  - OpenAI API (GPT-5/GPT-5-mini)
   - Companies House API
+  - Google Maps Places API v1
   - LinkedIn API integration
 
 ## 📋 Requirements
@@ -48,216 +79,191 @@ A comprehensive lead generation and customer relationship management (CRM) syste
 ### Python Dependencies
 ```
 Flask>=2.3.0
-Flask-Login>=0.6.0
 Flask-SQLAlchemy>=3.0.0
+Flask-Login>=0.6.0
 openai>=1.0.0
-requests>=2.28.0
-python-dotenv>=1.0.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
 ```
 
-## 🚀 Installation
+## 🚀 Quick Start
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/ccs-quote-tool.git
-   cd ccs-quote-tool
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   venv\Scripts\activate  # Windows
-   # or
-   source venv/bin/activate  # Linux/Mac
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment variables**
-   Create a `.env` file in the root directory:
-   ```env
-   OPENAI_API_KEY=your_openai_api_key_here
-   COMPANIES_HOUSE_API_KEY=your_companies_house_api_key_here
-   SECRET_KEY=your_secret_key_here
-   ```
-
-5. **Initialize database**
-   ```bash
-   python -c "from app import create_app, db; app = create_app(); app.app_context().push(); db.create_all()"
-   ```
-
-6. **Run the application**
-   ```bash
-   python app.py
-   ```
-
-7. **Access the application**
-   Open your browser and navigate to `http://localhost:5000`
-
-## 📁 Project Structure
-
-```
-ccs-quote-tool/
-├── app.py                          # Main Flask application
-├── models.py                       # Core database models
-├── models_crm.py                   # CRM-specific models
-├── models_lead_generation.py       # Lead generation models
-├── routes/
-│   ├── main.py                     # Main routes
-│   ├── auth.py                     # Authentication routes
-│   ├── quotes.py                   # Quote management routes
-│   ├── crm.py                      # CRM routes
-│   └── lead_generation.py          # Lead generation routes
-├── utils/
-│   ├── lead_generation_service.py  # AI lead generation logic
-│   ├── customer_intelligence.py    # AI analysis services
-│   ├── external_data_service.py    # External API integrations
-│   └── pricing_helper.py           # Pricing calculations
-├── templates/
-│   ├── base.html                   # Base template
-│   ├── auth/                       # Authentication templates
-│   ├── quotes/                     # Quote templates
-│   ├── crm/                        # CRM templates
-│   └── lead_generation/            # Lead generation templates
-├── static/                         # Static assets (CSS, JS, images)
-├── campaign_worker.py              # Background campaign processor
-└── requirements.txt                # Python dependencies
+1. **Clone the repository**:
+```bash
+git clone https://github.com/dje115/ccs-quote-tool.git
+cd ccs-quote-tool
 ```
 
-## 🎯 Usage
+2. **Install dependencies**:
+```bash
+pip install -r requirements.txt
+```
 
-### Creating Your First Campaign
+3. **Configure API keys** in the database settings:
+   - OpenAI API key (for GPT-5)
+   - Companies House API key
+   - Google Maps Places API key
 
-1. **Navigate to Lead Generation**
-   - Click "Lead Generation" in the sidebar
-   - Click "Create New Campaign"
+4. **Run the application**:
+```bash
+python app.py
+```
 
-2. **Configure Campaign**
-   - Enter campaign name and description
-   - Set target postcode and search radius
-   - Choose business type focus (IT/MSP, Cabling, etc.)
-   - Set maximum results limit
+5. **Access the application** at `http://localhost:5000`
 
-3. **Run Campaign**
-   - Click "Run Campaign"
-   - Monitor progress in real-time
-   - Campaign runs in background (3-5 minutes typical)
+## 📖 Usage Guide
 
-4. **Review Results**
-   - View generated leads
-   - Check AI analysis and scoring
-   - Review company information and contacts
+### Lead Generation Workflow
 
-### Converting Leads to Customers
+1. **Create a Campaign**:
+   - Navigate to Lead Generation → New Campaign
+   - Define search parameters (postcode, radius, business types)
+   - Set campaign name and description
 
-1. **Select Leads**
-   - Use checkboxes to select multiple leads
-   - Or convert individual leads
+2. **Run AI Analysis**:
+   - Campaign runs in background using GPT-5 with web search
+   - AI discovers leads, analyzes websites, and enriches data
+   - Google Maps integration finds all business locations
 
-2. **Convert to CRM**
-   - Click "Convert to Customer"
-   - System automatically creates customer and contact records
-   - Preserves all AI analysis and external data
+3. **Review and Qualify**:
+   - View generated leads with AI analysis
+   - Review business intelligence and location data
+   - Qualify leads based on AI scoring
 
-3. **Manage Customers**
-   - Navigate to CRM section
-   - View customer profiles and interactions
-   - Track follow-up activities
+4. **Convert to Customers**:
+   - Convert qualified leads to customers
+   - Preserve all AI analysis and external data
+   - Begin CRM workflow
+
+### Customer Management
+
+1. **Customer Profiles**:
+   - Comprehensive business intelligence
+   - Financial data from Companies House
+   - Google Maps location data
+   - Contact management
+
+2. **AI Analysis**:
+   - Technology needs assessment
+   - Competitor identification
+   - Opportunity scoring
+   - Risk analysis
+
+3. **Quote Generation**:
+   - AI-powered quote creation
+   - Product recommendations
+   - Cost estimation
 
 ## 🔧 Configuration
 
-### AI Settings
-- **Model**: GPT-5-mini (configurable in API settings)
-- **Token Limits**: 50,000 tokens for comprehensive analysis
-- **Web Search**: Enabled for real-time business discovery
-- **Temperature**: Default (GPT-5-mini optimized)
+### API Keys Setup
+
+The system requires the following API keys:
+
+1. **OpenAI API Key**:
+   - Required for AI analysis and lead generation
+   - Supports GPT-5 and GPT-5-mini models
+
+2. **Companies House API Key**:
+   - Required for UK company data and financial information
+   - Register at: https://developer.company-information.service.gov.uk/
+
+3. **Google Maps Places API Key**:
+   - Required for location discovery and verification
+   - Enable Places API in Google Cloud Console
 
 ### Database Configuration
-- **SQLite**: Default database with 30-second timeout
-- **Connection Pooling**: Enabled for multi-threaded operations
-- **Backup**: Regular database backups recommended
 
-### External API Configuration
-- **OpenAI API**: Required for AI lead generation
-- **Companies House API**: Required for company data enrichment
-- **Rate Limits**: Configured for optimal performance
+The system uses SQLite by default. Database file: `instance/app.db`
+
+## 📊 Database Schema
+
+### Core Entities
+
+- **Users**: Authentication and access control
+- **Customers**: Company information and business intelligence
+- **Contacts**: Individual contacts within companies
+- **LeadGenerationCampaigns**: AI-powered lead discovery campaigns
+- **Leads**: Prospects identified through campaigns
+- **Quotes**: Project quotes and estimates
+
+### Key Features
+
+- **Lead Scoring**: 0-100 scale for lead qualification
+- **Business Sector Classification**: Automated sector identification
+- **Financial Data Storage**: Companies House financial information
+- **Location Data**: Google Maps integration for address verification
+- **AI Analysis Storage**: Complete AI analysis as JSON
+
+## 🔍 Recent Improvements (v1.1.0)
+
+### Technical Enhancements
+- Fixed Unicode encoding issues for Windows console compatibility
+- Enhanced error handling and logging throughout the system
+- Improved database transaction management
+- Better API parameter handling for GPT-5 compatibility
+- Enhanced financial data extraction from Companies House
+- Improved location discovery and analysis
+
+### New Integrations
+- Google Maps Places API v1 for comprehensive location discovery
+- iXBRL document parsing for detailed financial analysis
+- Enhanced competitor identification and campaign creation
+
+### UI/UX Improvements
+- Added "View All Leads" functionality
+- Enhanced customer detail views with financial and location data
+- Improved navigation with additional "View Leads" buttons
+- Better error handling and user feedback
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **Campaign Stuck in "Running" Status**
-   - Check API key configuration
-   - Verify internet connectivity
-   - Review Flask application logs
+1. **Unicode Encoding Errors**:
+   - Fixed in v1.1.0 - ensure you're running the latest version
 
-2. **Database Lock Errors**
-   - Restart the application
-   - Check for concurrent database access
-   - Verify file permissions
+2. **API Key Issues**:
+   - Verify all API keys are configured in database settings
+   - Check API key permissions and quotas
 
-3. **AI Analysis Failures**
-   - Verify OpenAI API key and credits
-   - Check GPT-5-mini model availability
-   - Review token usage limits
+3. **Database Locking**:
+   - Enhanced transaction management in v1.1.0
+   - Restart application if issues persist
 
-4. **Lead Conversion Errors**
-   - Ensure all required fields are populated
-   - Check business sector enum mappings
-   - Verify contact information format
+4. **Background Processing**:
+   - Campaigns now run in separate processes
+   - Should survive Flask reloads
 
-### Log Files
-- Application logs: Console output
-- Database logs: SQLite journal files
-- API logs: OpenAI and external service responses
+## 📝 Changelog
 
-## 🔒 Security
+### Version 1.1.0 (Current)
+- Added Google Maps Places API v1 integration
+- Enhanced financial data extraction with iXBRL parsing
+- Improved location discovery and analysis
+- Added competitor campaign creation
+- Enhanced UI with "View All Leads" functionality
+- Fixed Unicode encoding issues
+- Improved background processing
+- Enhanced error handling and logging
 
-- **Authentication**: Flask-Login session management
-- **API Keys**: Environment variable storage
-- **Database**: SQLite with connection security
-- **Input Validation**: Comprehensive data sanitization
-- **SQL Injection**: SQLAlchemy ORM protection
+### Version 1.0.0
+- Initial release
+- Basic lead generation with GPT-5-mini
+- Companies House integration
+- LinkedIn data extraction
+- Customer management system
+- Quote generation system
 
-## 📊 Performance
+## 🤝 Support
 
-- **Lead Generation**: 3-5 minutes per campaign (25 leads)
-- **Database Operations**: <1 second for most queries
-- **AI Analysis**: 30-60 seconds per company
-- **Memory Usage**: ~100MB base, +50MB per active campaign
+This is a proprietary system for CCS. For technical support or feature requests, please contact the development team.
 
-## 🤝 Contributing
+## 📄 License
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-For support and questions:
-- Create an issue in the GitHub repository
-- Check the troubleshooting section above
-- Review application logs for error details
-
-## 🔄 Version History
-
-### Version 1.0 (Current)
-- Initial release with full lead generation capabilities
-- GPT-5-mini AI integration with web search
-- Complete CRM system with customer management
-- Companies House and LinkedIn data integration
-- Background processing for campaign management
-- Comprehensive error handling and validation
+Private - All rights reserved. This software is proprietary to CCS and not available for public use or distribution.
 
 ---
 
-**CCS Quote Tool v1.0** - Empowering IT service providers with AI-driven lead generation and customer management.
+**Version 1.1.0** - Enhanced with Google Maps integration, improved financial analysis, and comprehensive location intelligence.

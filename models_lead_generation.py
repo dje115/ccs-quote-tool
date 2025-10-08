@@ -142,6 +142,17 @@ class Lead(db.Model):
     
     # Relationships
     interactions = db.relationship('LeadInteraction', backref='lead', lazy=True, cascade="all, delete-orphan")
+    
+    # Properties for template convenience
+    @property
+    def is_converted_to_customer(self):
+        """Check if this lead has been converted to a customer"""
+        return self.converted_to_customer_id is not None
+    
+    @property
+    def converted_customer_id(self):
+        """Get the ID of the converted customer"""
+        return self.converted_to_customer_id
 
 class LeadInteraction(db.Model):
     __tablename__ = 'lead_interactions'

@@ -118,6 +118,29 @@
                                 <span class="text-muted">{{ customer.location_analysis }}</span>
                             </div>
                             {% endif %}
+                            
+                            {% if customer.google_maps_data %}
+                            <div class="mb-2">
+                                <strong>Google Maps Locations:</strong><br>
+                                {% set maps_data = customer.google_maps_data|from_json %}
+                                {% if maps_data.locations and maps_data.locations|length > 0 %}
+                                    {% for location in maps_data.locations %}
+                                        <div class="small mb-1">
+                                            <strong>{{ location.name }}</strong><br>
+                                            <span class="text-muted">{{ location.address }}</span>
+                                            {% if location.phone %}
+                                                <br><i class="fas fa-phone"></i> {{ location.phone }}
+                                            {% endif %}
+                                            {% if location.rating %}
+                                                <br><i class="fas fa-star text-warning"></i> {{ location.rating }}/5
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">No Google Maps locations found</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>
@@ -203,8 +226,13 @@
                     
                     {% if customer.ai_competitors %}
                     <div class="mt-3">
-                        <h6><i class="fas fa-users text-warning"></i> Competitors</h6>
-                        <p class="text-muted">{{ customer.ai_competitors }}</p>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6><i class="fas fa-users text-warning"></i> Competitors</h6>
+                            <button class="btn btn-sm btn-outline-primary" onclick="addCompetitorsToCampaign()" title="Add competitors to lead generation campaign">
+                                <i class="fas fa-plus"></i> Add to Campaign
+                            </button>
+                        </div>
+                        <p class="text-muted" id="competitors-text">{{ customer.ai_competitors }}</p>
                     </div>
                     {% endif %}
                     
@@ -330,12 +358,23 @@
                                             <th>Shareholders' Funds</th>
                                             <th>Cash at Bank</th>
                                             <th>Profit Before Tax</th>
+                                            <th>Employees</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for year_data in accounts['detailed_financials'][:3] %}
                                         <tr>
-                                            <td>{{ year_data.get('filing_date', 'Unknown')[:4] }}</td>
+                                            <td>
+                                                {% if year_data.get('financial_year') %}
+                                                    {{ year_data.get('financial_year') }}
+                                                {% elif year_data.get('period_end') %}
+                                                    {{ year_data.get('period_end')[:4] }}
+                                                {% elif year_data.get('reporting_date') %}
+                                                    {{ year_data.get('reporting_date')[:4] }}
+                                                {% else %}
+                                                    {{ year_data.get('filing_date', 'Unknown')[:4] }}
+                                                {% endif %}
+                                            </td>
                                             <td>
                                                 {% if year_data.get('turnover') %}
                                                     {% if year_data['turnover'] is number %}
@@ -378,6 +417,13 @@
                                                     {% endif %}
                                                 {% else %}
                                                     N/A
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if year_data.get('employees') %}
+                                                    {{ year_data['employees'] }}
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
                                                 {% endif %}
                                             </td>
                                         </tr>
@@ -873,12 +919,23 @@ function showDetailedFinancials() {
         
         content += '<div class="table-responsive">';
         content += '<table class="table table-sm table-striped">';
-        content += '<thead><tr><th>Year</th><th>Turnover</th><th>Shareholders\' Funds</th><th>Cash at Bank</th><th>Profit Before Tax</th></tr></thead>';
+        content += '<thead><tr><th>Year</th><th>Turnover</th><th>Shareholders\' Funds</th><th>Cash at Bank</th><th>Profit Before Tax</th><th>Employees</th></tr></thead>';
         content += '<tbody>';
         
         accounts.detailed_financials.forEach(yearData => {
             content += '<tr>';
-            content += `<td>${yearData.filing_date ? yearData.filing_date.substring(0, 4) : 'Unknown'}</td>`;
+            // Use financial year if available, otherwise filing date
+            let yearDisplay = 'Unknown';
+            if (yearData.financial_year) {
+                yearDisplay = yearData.financial_year;
+            } else if (yearData.period_end) {
+                yearDisplay = yearData.period_end.substring(0, 4);
+            } else if (yearData.reporting_date) {
+                yearDisplay = yearData.reporting_date.substring(0, 4);
+            } else if (yearData.filing_date) {
+                yearDisplay = yearData.filing_date.substring(0, 4);
+            }
+            content += `<td>${yearDisplay}</td>`;
             
             // Turnover
             if (yearData.turnover) {
@@ -921,6 +978,13 @@ function showDetailedFinancials() {
                 } else {
                     content += `<td>${yearData.profit_before_tax}</td>`;
                 }
+            } else {
+                content += '<td class="text-muted">N/A</td>';
+            }
+            
+            // Employees
+            if (yearData.employees) {
+                content += `<td>${yearData.employees}</td>`;
             } else {
                 content += '<td class="text-muted">N/A</td>';
             }
@@ -1230,6 +1294,95 @@ function toggleRegistrationConfirmation(checkbox) {
         alert('Error updating confirmation status');
         // Revert checkbox state
         checkbox.checked = !confirmed;
+    });
+}
+
+// Function to create competitors campaign
+function addCompetitorsToCampaign() {
+    // Create modal for confirmation
+    const modal = `
+        <div class="modal fade" id="competitorsModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Create Competitors Campaign</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>This will create a new lead generation campaign specifically for competitor companies and automatically run it to collect detailed data.</p>
+                        <div class="alert alert-info">
+                            <strong>Competitors to analyze:</strong>
+                            <div id="preview-competitors"></div>
+                        </div>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle"></i> The campaign will be named "Competitors of [Company Name] - [Date Time]" and will run automatically in the background.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="createCompetitorsCampaign()">Create Campaign</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('competitorsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Show modal
+    const modalInstance = new bootstrap.Modal(document.getElementById('competitorsModal'));
+    modalInstance.show();
+    
+    // Show preview of competitors
+    const competitorsText = document.getElementById('competitors-text').textContent;
+    document.getElementById('preview-competitors').textContent = competitorsText.substring(0, 200) + '...';
+}
+
+function createCompetitorsCampaign() {
+    const competitorsText = document.getElementById('competitors-text').textContent;
+    const sourceCompany = document.querySelector('h1').textContent.trim(); // Get company name from page title
+    
+    // Show loading state
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = 'Creating...';
+    button.disabled = true;
+    
+    // Send request
+    fetch('/lead-generation/create-competitors-campaign', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            competitors_text: competitorsText,
+            source_company: sourceCompany
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Success! Created competitor campaign "${data.campaign_name}" with ${data.competitors_added.length} companies. The campaign is now running in the background to collect detailed data.`);
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('competitorsModal')).hide();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error creating competitors campaign');
+    })
+    .finally(() => {
+        button.textContent = originalText;
+        button.disabled = false;
     });
 }
 </script>

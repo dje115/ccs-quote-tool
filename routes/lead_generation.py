@@ -642,6 +642,24 @@ def view_lead(lead_id):
     """View lead details"""
     lead = Lead.query.get_or_404(lead_id)
     
+    # Check if this lead has already been converted to a customer
+    if lead.converted_to_customer_id:
+        # Lead has been converted, redirect to customer detail page
+        from models_crm import Customer
+        customer = Customer.query.get(lead.converted_to_customer_id)
+        if customer:
+            flash(f'This lead has already been converted to a customer.', 'info')
+            return redirect(url_for('crm.customer_detail', customer_id=customer.id))
+    
+    # Also check by company name as a fallback
+    from models_crm import Customer
+    existing_customer = Customer.query.filter_by(company_name=lead.company_name).first()
+    
+    if existing_customer:
+        # Lead has already been converted, redirect to customer detail page
+        flash(f'This lead has already been converted to a customer.', 'info')
+        return redirect(url_for('crm.customer_detail', customer_id=existing_customer.id))
+    
     # Get lead interactions
     from models_lead_generation import LeadInteraction
     interactions = LeadInteraction.query.filter_by(lead_id=lead.id).order_by(desc(LeadInteraction.created_at)).all()
@@ -649,6 +667,304 @@ def view_lead(lead_id):
     return render_template('lead_generation/lead_detail.html',
                          lead=lead,
                          interactions=interactions)
+
+@lead_generation_bp.route('/campaigns/api')
+@login_required
+def get_campaigns_api():
+    """Get campaigns as JSON for API calls"""
+    campaigns = LeadGenerationCampaign.query.filter_by(created_by=current_user.id).all()
+    return jsonify([{
+        'id': campaign.id,
+        'name': campaign.name,
+        'description': campaign.description,
+        'status': campaign.status.value
+    } for campaign in campaigns])
+
+def collect_competitor_data(campaign_id: int, competitor_names: list, source_company: str):
+    """Collect detailed information about competitor companies"""
+    try:
+        from utils.external_data_service import ExternalDataService
+        from utils.customer_intelligence import CustomerIntelligenceService
+        
+        external_service = ExternalDataService()
+        intelligence_service = CustomerIntelligenceService()
+        
+        print(f"[COMPETITOR] Starting data collection for {len(competitor_names)} competitors")
+        
+        for i, company_name in enumerate(competitor_names):
+            try:
+                print(f"[COMPETITOR] Processing {i+1}/{len(competitor_names)}: {company_name}")
+                
+                # Get the lead for this competitor
+                lead = Lead.query.filter_by(
+                    campaign_id=campaign_id,
+                    company_name=company_name
+                ).first()
+                
+                if not lead:
+                    print(f"[COMPETITOR] Lead not found for {company_name}")
+                    continue
+                
+                # Search for company information using web search
+                company_info = search_company_information(company_name)
+                
+                if company_info:
+                    # Update lead with collected information
+                    lead.website = company_info.get('website')
+                    lead.contact_name = company_info.get('contact_name')
+                    lead.contact_email = company_info.get('contact_email')
+                    lead.contact_phone = company_info.get('contact_phone')
+                    lead.address = company_info.get('address')
+                    lead.postcode = company_info.get('postcode')
+                    lead.business_sector = company_info.get('business_sector')
+                    lead.company_size = company_info.get('company_size')
+                    lead.qualification_reason = f"Competitor of {source_company}. {company_info.get('description', 'IT services company')}"
+                    lead.potential_project_value = company_info.get('estimated_revenue')
+                    lead.timeline_estimate = "Ongoing monitoring"
+                    lead.lead_score = 75  # High score for competitors
+                    
+                    # Try to get Companies House data if we have a registration number
+                    if company_info.get('company_registration'):
+                        ch_data = external_service.get_companies_house_data(
+                            company_name, 
+                            company_info['company_registration']
+                        )
+                        if ch_data and ch_data.get('success'):
+                            lead.companies_house_data = ch_data['data']
+                            lead.company_registration = company_info['company_registration']
+                            lead.registration_confirmed = True
+                    
+                    # Store LinkedIn data if found
+                    if company_info.get('linkedin_url'):
+                        lead.linkedin_url = company_info['linkedin_url']
+                        # Could add LinkedIn data scraping here if needed
+                    
+                    # Store website data if found
+                    if company_info.get('website_data'):
+                        lead.website_data = company_info['website_data']
+                    
+                    db.session.commit()
+                    print(f"[COMPETITOR] Successfully updated {company_name}")
+                else:
+                    print(f"[COMPETITOR] No information found for {company_name}")
+                
+            except Exception as e:
+                print(f"[COMPETITOR] Error processing {company_name}: {e}")
+                continue
+        
+        print(f"[COMPETITOR] Completed data collection for campaign {campaign_id}")
+        
+    except Exception as e:
+        print(f"[COMPETITOR] Error in competitor data collection: {e}")
+
+def search_company_information(company_name: str) -> dict:
+    """Search for detailed information about a specific company"""
+    try:
+        from utils.lead_generation_service import LeadGenerationService
+        service = LeadGenerationService()
+        
+        # Use AI to search for specific company information
+        prompt = f"""
+        I need detailed information about this specific UK company: "{company_name}"
+        
+        Please search for and provide:
+        1. Company website URL
+        2. Contact information (name, email, phone)
+        3. Business address and postcode
+        4. Business sector/industry
+        5. Company size (employees)
+        6. Company registration number (if available)
+        7. LinkedIn company page URL
+        8. Brief description of services
+        9. Estimated annual revenue (if possible)
+        
+        Focus on finding the OFFICIAL company information, not generic listings.
+        Look for their actual website, contact details, and business information.
+        
+        Respond in JSON format:
+        {{
+            "website": "string",
+            "contact_name": "string", 
+            "contact_email": "string",
+            "contact_phone": "string",
+            "address": "string",
+            "postcode": "string",
+            "business_sector": "string",
+            "company_size": "string",
+            "company_registration": "string",
+            "linkedin_url": "string",
+            "description": "string",
+            "estimated_revenue": "string"
+        }}
+        """
+        
+        # Use the AI service to search for company information
+        response = service._use_responses_api_with_web_search(prompt)
+        
+        if response:
+            # Try to parse JSON from the response
+            try:
+                import json
+                # Extract JSON from the response
+                if hasattr(response, 'results') and response.results:
+                    content = response.results[0].content
+                    if isinstance(content, list) and len(content) > 0:
+                        text = content[0].text
+                    else:
+                        text = str(content)
+                else:
+                    text = str(response)
+                
+                # Find JSON in the response
+                start_idx = text.find('{')
+                end_idx = text.rfind('}') + 1
+                if start_idx != -1 and end_idx > start_idx:
+                    json_str = text[start_idx:end_idx]
+                    return json.loads(json_str)
+                
+            except Exception as e:
+                print(f"[COMPETITOR] Error parsing JSON for {company_name}: {e}")
+        
+        return None
+        
+    except Exception as e:
+        print(f"[COMPETITOR] Error searching for {company_name}: {e}")
+        return None
+
+@lead_generation_bp.route('/create-competitors-campaign', methods=['POST'])
+@login_required
+def create_competitors_campaign():
+    """Create a new campaign specifically for competitor companies and auto-run it"""
+    try:
+        data = request.get_json()
+        competitor_text = data.get('competitors_text', '')
+        source_company = data.get('source_company', 'Unknown Company')
+        
+        if not competitor_text:
+            return jsonify({'success': False, 'error': 'Missing competitors text'})
+        
+        # Parse competitor companies from the text
+        import re
+        
+        # Extract company names (common patterns)
+        company_patterns = [
+            r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Ltd|Limited|PLC|plc|Inc|Corp|LLC)\b',
+            r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:IT|Computing|Technology|Systems|Solutions|Group|Services)\b',
+            r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b'  # Fallback for any capitalized words
+        ]
+        
+        # Known competitor companies from the example
+        known_competitors = [
+            'Air IT', 'BCN Group', 'Littlefish', 'Razorblue', 'SysGroup', 
+            'Node4', 'Redcentric', 'Digital Space', 'Timico', 'ANS Group', 
+            'Claranet', 'Phoenix', 'fluidone', 'M247'
+        ]
+        
+        competitors = set()
+        
+        # First, look for known competitors
+        for competitor in known_competitors:
+            if competitor.lower() in competitor_text.lower():
+                competitors.add(competitor)
+        
+        # Then extract using patterns
+        for pattern in company_patterns:
+            matches = re.findall(pattern, competitor_text)
+            for match in matches:
+                # Clean up the match
+                company_name = match.strip()
+                if len(company_name) > 3 and company_name not in competitors:
+                    competitors.add(company_name)
+        
+        if not competitors:
+            return jsonify({'success': False, 'error': 'No competitor companies found in the text'})
+        
+        # Create campaign name with date and time
+        from datetime import datetime
+        now = datetime.now()
+        campaign_name = f"Competitors of {source_company} - {now.strftime('%Y-%m-%d %H:%M')}"
+        
+        # Create new campaign specifically for competitors
+        campaign = LeadGenerationCampaign(
+            name=campaign_name,
+            description=f"Competitive intelligence campaign for {source_company}. Automatically generated from AI competitor analysis.",
+            prompt_type='competitor_analysis',
+            postcode="LE1 1AA",  # Default Leicester postcode
+            distance_miles=100,  # Wide search area for competitors
+            max_results=len(competitors) * 2,  # Allow some buffer
+            created_by=current_user.id,
+            status=LeadGenerationStatus.DRAFT
+        )
+        
+        db.session.add(campaign)
+        db.session.flush()  # Get campaign ID
+        
+        # Create leads for each competitor
+        created_leads = []
+        for company_name in competitors:
+            # Check if lead already exists across all campaigns (deduplication)
+            existing_lead = Lead.query.filter_by(
+                company_name=company_name,
+                created_by=current_user.id
+            ).first()
+            
+            if not existing_lead:
+                # Create new lead for competitor
+                lead = Lead(
+                    campaign_id=campaign.id,
+                    company_name=company_name,
+                    status=LeadStatus.NEW,
+                    source=LeadSource.AI_GENERATED,
+                    qualification_reason=f"Competitor of {source_company} identified through AI analysis",
+                    timeline_estimate="Unknown",
+                    created_by=current_user.id
+                )
+                
+                db.session.add(lead)
+                created_leads.append(company_name)
+        
+        # Set campaign status to RUNNING and start processing
+        campaign.status = LeadGenerationStatus.RUNNING
+        db.session.commit()
+        
+        # Start the campaign in background to collect detailed data
+        try:
+            # Run competitor data collection in background thread
+            import threading
+            def run_competitor_campaign():
+                try:
+                    # Use specialized competitor data collection instead of general lead generation
+                    collect_competitor_data(campaign.id, created_leads, source_company)
+                    
+                    # Update campaign status
+                    with current_app.app_context():
+                        campaign.status = LeadGenerationStatus.COMPLETED
+                        campaign.leads_created = len(created_leads)
+                        db.session.commit()
+                except Exception as e:
+                    with current_app.app_context():
+                        campaign.status = LeadGenerationStatus.FAILED
+                        db.session.commit()
+                    print(f"Competitor campaign failed: {e}")
+            
+            thread = threading.Thread(target=run_competitor_campaign, daemon=True)
+            thread.start()
+            
+        except Exception as e:
+            print(f"Error starting competitor campaign: {e}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Created competitor campaign with {len(created_leads)} companies',
+            'campaign_id': campaign.id,
+            'campaign_name': campaign_name,
+            'competitors_added': created_leads,
+            'total_competitors': len(competitors)
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
 
 @lead_generation_bp.route('/leads/bulk-action', methods=['POST'])
 @login_required

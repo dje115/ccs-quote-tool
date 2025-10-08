@@ -94,6 +94,7 @@ class Customer(db.Model):
     linkedin_url = Column(String(255), nullable=True)
     linkedin_data = Column(Text, nullable=True)  # LinkedIn data as JSON
     companies_house_data = Column(Text, nullable=True)  # Companies House data as JSON
+    google_maps_data = Column(Text, nullable=True)  # Google Maps location data as JSON
     website_data = Column(Text, nullable=True)  # Website scraping data as JSON
     
     # AI-Generated Address Analysis

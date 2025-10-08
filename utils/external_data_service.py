@@ -45,99 +45,96 @@ class ExternalDataService:
             namespaces = {
                 'ix': 'http://www.xbrl.org/2013/inlineXBRL',
                 'xbrli': 'http://www.xbrl.org/2003/instance',
+                'e': 'http://xbrl.frc.org.uk/fr/2023-01-01/core',  # Correct namespace for this document
                 'core': 'http://xbrl.frc.org.uk/fr/2023-01-01/core',
                 'bus': 'http://xbrl.frc.org.uk/general/2023-01-01/common'
             }
             
             # Extract financial data using XBRL tags
-            # Net Assets / Shareholders' Funds
-            net_assets_elements = root.findall('.//ix:nonFraction[@name="core:NetAssetsLiabilities"]', namespaces)
-            if net_assets_elements:
-                # Get the most recent year's data (usually the first one)
-                for elem in net_assets_elements[:1]:
-                    try:
-                        value = float(elem.text.replace(',', ''))
-                        financial_data['net_assets'] = value
-                        break
-                    except:
-                        continue
+            # Try multiple namespace prefixes and tag variations
+            tag_variations = [
+                # Net Assets / Shareholders' Funds
+                ('net_assets', ['e:NetAssetsLiabilities', 'core:NetAssetsLiabilities', 'e:NetAssets', 'core:NetAssets']),
+                # Cash at Bank
+                ('cash_at_bank', ['e:CashBankOnHand', 'core:CashBankOnHand', 'e:CashAtBank', 'core:CashAtBank']),
+                # Total Equity
+                ('total_equity', ['e:Equity', 'core:Equity', 'e:TotalEquity', 'core:TotalEquity']),
+                # Property, Plant & Equipment
+                ('ppe', ['e:PropertyPlantEquipment', 'core:PropertyPlantEquipment', 'e:PPE', 'core:PPE']),
+                # Trade Debtors
+                ('trade_debtors', ['e:TradeDebtorsTradeReceivables', 'core:TradeDebtorsTradeReceivables', 'e:TradeDebtors', 'core:TradeDebtors']),
+                # Turnover/Revenue
+                ('turnover', ['e:TurnoverRevenue', 'core:TurnoverRevenue', 'e:Revenue', 'core:Revenue']),
+                # Profit Before Tax
+                ('profit_before_tax', ['e:ProfitLossOnOrdinaryActivitiesBeforeTax', 'core:ProfitLossOnOrdinaryActivitiesBeforeTax', 'e:ProfitBeforeTax', 'core:ProfitBeforeTax']),
+                # Operating Profit
+                ('operating_profit', ['e:OperatingProfitLoss', 'core:OperatingProfitLoss', 'e:OperatingProfit', 'core:OperatingProfit']),
+                # Gross Profit
+                ('gross_profit', ['e:GrossProfitLoss', 'core:GrossProfitLoss', 'e:GrossProfit', 'core:GrossProfit']),
+                # Cost of Sales
+                ('cost_of_sales', ['e:CostSales', 'core:CostSales', 'e:CostOfSales', 'core:CostOfSales']),
+                # Administrative Expenses
+                ('admin_expenses', ['e:AdministrativeExpenses', 'core:AdministrativeExpenses', 'e:AdminExpenses', 'core:AdminExpenses'])
+            ]
             
-            # Cash at Bank
-            cash_elements = root.findall('.//ix:nonFraction[@name="core:CashBankOnHand"]', namespaces)
-            if cash_elements:
-                for elem in cash_elements[:1]:
-                    try:
-                        value = float(elem.text.replace(',', ''))
-                        financial_data['cash_at_bank'] = value
-                        break
-                    except:
-                        continue
+            for field_name, tag_list in tag_variations:
+                for tag in tag_list:
+                    elements = root.findall(f'.//ix:nonFraction[@name="{tag}"]', namespaces)
+                    if elements:
+                        # Get the most recent year's data (usually the first one)
+                        for elem in elements[:1]:
+                            try:
+                                value = float(elem.text.replace(',', ''))
+                                financial_data[field_name] = value
+                                break
+                            except:
+                                continue
+                        if field_name in financial_data:
+                            break  # Found the data, move to next field
+            # Extract employee count
+            employee_tag_variations = [
+                'e:AverageNumberEmployeesDuringPeriod',
+                'core:AverageNumberEmployeesDuringPeriod',
+                'e:NumberOfEmployees',
+                'core:NumberOfEmployees'
+            ]
             
-            # Total Equity
-            equity_elements = root.findall('.//ix:nonFraction[@name="core:Equity"]', namespaces)
-            if equity_elements:
-                for elem in equity_elements[:1]:
-                    try:
-                        value = float(elem.text.replace(',', ''))
-                        financial_data['total_equity'] = value
+            for tag in employee_tag_variations:
+                elements = root.findall(f'.//ix:nonFraction[@name="{tag}"]', namespaces)
+                if elements:
+                    for elem in elements[:1]:
+                        try:
+                            value = int(float(elem.text))
+                            financial_data['employees'] = value
+                            break
+                        except:
+                            continue
+                    if 'employees' in financial_data:
                         break
-                    except:
-                        continue
             
-            # Property, Plant & Equipment
-            ppe_elements = root.findall('.//ix:nonFraction[@name="core:PropertyPlantEquipment"]', namespaces)
-            if ppe_elements:
-                for elem in ppe_elements[:1]:
-                    try:
-                        value = float(elem.text.replace(',', ''))
-                        financial_data['ppe'] = value
-                        break
-                    except:
-                        continue
+            # Extract financial year periods
+            # Look for period start and end dates
+            period_tag_variations = [
+                ('period_start', ['e:PeriodStartDate', 'core:PeriodStartDate', 'e:StartDate', 'core:StartDate']),
+                ('period_end', ['e:PeriodEndDate', 'core:PeriodEndDate', 'e:EndDate', 'core:EndDate']),
+                ('reporting_date', ['e:ReportingDate', 'core:ReportingDate', 'e:BalanceSheetDate', 'core:BalanceSheetDate'])
+            ]
             
-            # Trade Debtors
-            debtors_elements = root.findall('.//ix:nonFraction[@name="core:TradeDebtorsTradeReceivables"]', namespaces)
-            if debtors_elements:
-                for elem in debtors_elements[:1]:
-                    try:
-                        value = float(elem.text.replace(',', ''))
-                        financial_data['trade_debtors'] = value
-                        break
-                    except:
-                        continue
-            
-            # Other Debtors
-            other_debtors_elements = root.findall('.//ix:nonFraction[@name="core:OtherDebtors"]', namespaces)
-            if other_debtors_elements:
-                for elem in other_debtors_elements[:1]:
-                    try:
-                        value = float(elem.text.replace(',', ''))
-                        financial_data['other_debtors'] = value
-                        break
-                    except:
-                        continue
-            
-            # Average Number of Employees
-            employees_elements = root.findall('.//ix:nonFraction[@name="core:AverageNumberEmployeesDuringPeriod"]', namespaces)
-            if employees_elements:
-                for elem in employees_elements[:1]:
-                    try:
-                        value = int(float(elem.text))
-                        financial_data['employees'] = value
-                        break
-                    except:
-                        continue
-            
-            # Share Capital - use a simpler approach
-            share_capital_elements = root.findall('.//ix:nonFraction[@name="core:Equity"]', namespaces)
-            if share_capital_elements:
-                for elem in share_capital_elements[:1]:
-                    try:
-                        value = float(elem.text.replace(',', ''))
-                        financial_data['share_capital'] = value
-                        break
-                    except:
-                        continue
+            for field_name, tag_list in period_tag_variations:
+                for tag in tag_list:
+                    elements = root.findall(f'.//ix:nonFraction[@name="{tag}"]', namespaces)
+                    if elements:
+                        for elem in elements[:1]:
+                            try:
+                                # Try to parse date
+                                date_text = elem.text.strip()
+                                if date_text and len(date_text) >= 4:
+                                    financial_data[field_name] = date_text
+                                    break
+                            except:
+                                continue
+                        if field_name in financial_data:
+                            break
             
             # Try alternative parsing if XBRL tags don't work
             if not financial_data:
@@ -466,86 +463,228 @@ class ExternalDataService:
                                 
                                 if document_metadata_url:
                                     try:
-                                        # Get document metadata to find the iXBRL download URL
-                                        metadata_response = self.session.get(document_metadata_url, headers=headers, timeout=10)
+                                        # Extract document ID from the metadata URL
+                                        # URL format: https://document-api.company-information.service.gov.uk/document/{document_id}
+                                        document_id = document_metadata_url.split('/')[-1]
+                                        print(f"[IXBRL] Document ID: {document_id}")
+                                        
+                                        # Step 1: Get document metadata using the correct Document API endpoint
+                                        # Document API uses different authentication - extract API key from Authorization header
+                                        auth_header = headers.get('Authorization', '')
+                                        if auth_header.startswith('Basic '):
+                                            api_key = auth_header.replace('Basic ', '')
+                                            doc_headers = {'api_key': api_key}
+                                        else:
+                                            doc_headers = headers.copy()
+                                        
+                                        metadata_url = f"https://document-api.company-information.service.gov.uk/document/{document_id}"
+                                        metadata_response = self.session.get(metadata_url, headers=doc_headers, timeout=10)
+                                        
                                         if metadata_response.status_code == 200:
                                             metadata = metadata_response.json()
+                                            print(f"[IXBRL] Document metadata: {list(metadata.keys())}")
                                             
-                                            # Look for document download links
-                                            doc_links = metadata.get('links', {})
-                                            if 'document' in doc_links:
-                                                doc_url = doc_links['document']
+                                            # Check available content types
+                                            resources = metadata.get('resources', {})
+                                            available_types = list(resources.keys())
+                                            print(f"[IXBRL] Available content types: {available_types}")
+                                            
+                                            # Look for iXBRL/XHTML format
+                                            target_content_type = None
+                                            for content_type in ['application/xhtml+xml', 'application/xml', 'text/html']:
+                                                if content_type in available_types:
+                                                    target_content_type = content_type
+                                                    break
+                                            
+                                            if target_content_type:
+                                                print(f"[IXBRL] Using content type: {target_content_type}")
                                                 
-                                                # Try to download the iXBRL document
-                                                doc_response = self.session.get(doc_url, headers=headers, timeout=30)
-                                                if doc_response.status_code == 200:
-                                                    content_type = doc_response.headers.get('content-type', '')
+                                                # Step 2: Download the document using the correct endpoint
+                                                content_url = f"https://document-api.company-information.service.gov.uk/document/{document_id}/content"
+                                                content_headers = doc_headers.copy()
+                                                content_headers['Accept'] = target_content_type
+                                                
+                                                content_response = self.session.get(content_url, headers=content_headers, timeout=30, allow_redirects=True)
+                                                
+                                                if content_response.status_code == 200:
+                                                    content = content_response.text
+                                                    print(f"[IXBRL] Downloaded iXBRL document for {company_number}, size: {len(content)} chars")
                                                     
-                                                    if 'xml' in content_type or 'html' in content_type:
-                                                        # It's likely an iXBRL document
-                                                        content = doc_response.text
-                                                        print(f"[IXBRL] Found iXBRL document for {company_number}, size: {len(content)} chars")
+                                                    # Parse the iXBRL document for financial data
+                                                    financial_data = self._parse_ixbrl_document(content)
+                                                    
+                                                    if financial_data:
+                                                        # Extract key financial figures
+                                                        if 'net_assets' in financial_data:
+                                                            year_data['shareholders_funds'] = financial_data['net_assets']
+                                                            if i == 0:
+                                                                accounts_info['shareholders_funds_current'] = financial_data['net_assets']
+                                                                accounts_info['shareholders_funds'] = f"£{financial_data['net_assets']:,.0f}"
+                                                            elif i == 1:
+                                                                accounts_info['shareholders_funds_previous'] = financial_data['net_assets']
                                                         
-                                                        # Parse the iXBRL document for financial data
-                                                        financial_data = self._parse_ixbrl_document(content)
+                                                        if 'cash_at_bank' in financial_data:
+                                                            year_data['cash_at_bank'] = financial_data['cash_at_bank']
+                                                            if i == 0:
+                                                                accounts_info['cash_at_bank_current'] = financial_data['cash_at_bank']
+                                                                accounts_info['cash_at_bank'] = f"£{financial_data['cash_at_bank']:,.0f}"
+                                                            elif i == 1:
+                                                                accounts_info['cash_at_bank_previous'] = financial_data['cash_at_bank']
                                                         
-                                                        if financial_data:
-                                                            # Extract key financial figures
-                                                            if 'net_assets' in financial_data:
-                                                                year_data['shareholders_funds'] = financial_data['net_assets']
-                                                                if i == 0:
-                                                                    accounts_info['shareholders_funds_current'] = financial_data['net_assets']
-                                                                    accounts_info['shareholders_funds'] = f"£{financial_data['net_assets']:,.0f}"
-                                                                elif i == 1:
-                                                                    accounts_info['shareholders_funds_previous'] = financial_data['net_assets']
-                                                            
-                                                            if 'cash_at_bank' in financial_data:
-                                                                year_data['cash_at_bank'] = financial_data['cash_at_bank']
-                                                                if i == 0:
-                                                                    accounts_info['cash_at_bank_current'] = financial_data['cash_at_bank']
-                                                                    accounts_info['cash_at_bank'] = f"£{financial_data['cash_at_bank']:,.0f}"
-                                                                elif i == 1:
-                                                                    accounts_info['cash_at_bank_previous'] = financial_data['cash_at_bank']
-                                                            
-                                                            if 'total_equity' in financial_data:
-                                                                year_data['total_equity'] = financial_data['total_equity']
-                                                            
-                                                            if 'employees' in financial_data:
-                                                                year_data['employees'] = financial_data['employees']
-                                                                if i == 0:
-                                                                    accounts_info['employee_count'] = financial_data['employees']
-                                                            
-                                                            if 'trade_debtors' in financial_data:
-                                                                year_data['trade_debtors'] = financial_data['trade_debtors']
-                                                            
-                                                            print(f"[IXBRL] Extracted financial data: {financial_data}")
-                                                        else:
-                                                            print(f"[IXBRL] No financial data extracted from document")
+                                                        if 'turnover' in financial_data:
+                                                            year_data['turnover'] = financial_data['turnover']
+                                                            if i == 0:
+                                                                accounts_info['turnover_current'] = financial_data['turnover']
+                                                                accounts_info['turnover'] = f"£{financial_data['turnover']:,.0f}"
+                                                            elif i == 1:
+                                                                accounts_info['turnover_previous'] = financial_data['turnover']
+                                                        
+                                                        if 'profit_before_tax' in financial_data:
+                                                            year_data['profit_before_tax'] = financial_data['profit_before_tax']
+                                                        
+                                                        if 'employees' in financial_data:
+                                                            year_data['employees'] = financial_data['employees']
+                                                            if i == 0:
+                                                                accounts_info['employee_count'] = financial_data['employees']
+                                                        
+                                                        # Map period information
+                                                        if 'period_start' in financial_data:
+                                                            year_data['period_start'] = financial_data['period_start']
+                                                        if 'period_end' in financial_data:
+                                                            year_data['period_end'] = financial_data['period_end']
+                                                        if 'reporting_date' in financial_data:
+                                                            year_data['reporting_date'] = financial_data['reporting_date']
+                                                        
+                                                        if 'total_equity' in financial_data:
+                                                            year_data['total_equity'] = financial_data['total_equity']
+                                                        
+                                                        if 'employees' in financial_data:
+                                                            year_data['employees'] = financial_data['employees']
+                                                            if i == 0:
+                                                                accounts_info['employee_count'] = financial_data['employees']
+                                                        
+                                                        if 'trade_debtors' in financial_data:
+                                                            year_data['trade_debtors'] = financial_data['trade_debtors']
+                                                        
+                                                        print(f"[IXBRL] Extracted financial data: {financial_data}")
+                                                    else:
+                                                        print(f"[IXBRL] No financial data extracted from document")
+                                                else:
+                                                    print(f"[IXBRL] Error downloading document content: {content_response.status_code}")
+                                            else:
+                                                print(f"[IXBRL] No suitable content type found. Available: {available_types}")
+                                        else:
+                                            print(f"[IXBRL] Metadata request failed: {metadata_response.status_code}")
+                                            print(f"[IXBRL] Error: {metadata_response.text[:200]}")
                                     except Exception as meta_e:
                                         print(f"Error accessing iXBRL document: {meta_e}")
                             
-                            # Fallback: Try to extract from filing description if no iXBRL data found
+                            # Fallback: Try direct Companies House web URL if Document API fails
                             if not any([year_data.get('shareholders_funds'), year_data.get('cash_at_bank')]):
-                                description = filing.get('description', '').lower()
-                                
-                                # Look for financial figures in the description
-                                financial_figures = re.findall(r'£([\d,]+(?:\.\d{2})?)', description)
-                                if financial_figures:
+                                transaction_id = filing.get('transaction_id')
+                                if transaction_id:
+                                    # Try the direct Companies House web URL for iXBRL documents
+                                    direct_ixbrl_url = f"https://find-and-update.company-information.service.gov.uk/company/{company_number}/filing-history/{transaction_id}/document?format=xhtml&download=1"
+                                    print(f"[IXBRL] Trying direct web URL: {direct_ixbrl_url}")
+                                    
                                     try:
-                                        # Convert to numbers and find the largest (likely to be turnover)
-                                        figure_values = [float(f.replace(',', '')) for f in financial_figures]
-                                        largest_figure = max(figure_values)
+                                        # Use a different session for web scraping (no auth required for public URLs)
+                                        web_session = requests.Session()
+                                        web_session.headers.update({
+                                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                                        })
                                         
-                                        # Only use if it's a reasonable amount (not just a small fee)
-                                        if largest_figure > 1000:
-                                            year_data['turnover'] = largest_figure
-                                            if i == 0:
-                                                accounts_info['turnover_current'] = largest_figure
-                                                accounts_info['turnover'] = f"£{largest_figure:,.0f}"
-                                            elif i == 1:
-                                                accounts_info['turnover_previous'] = largest_figure
-                                    except:
-                                        pass
+                                        direct_response = web_session.get(direct_ixbrl_url, timeout=30)
+                                        if direct_response.status_code == 200:
+                                            content = direct_response.text
+                                            print(f"[IXBRL] Successfully downloaded iXBRL document via web URL, size: {len(content)} chars")
+                                            
+                                            # Parse the iXBRL document for financial data
+                                            financial_data = self._parse_ixbrl_document(content)
+                                            
+                                            if financial_data:
+                                                # Extract key financial figures
+                                                if 'net_assets' in financial_data:
+                                                    year_data['shareholders_funds'] = financial_data['net_assets']
+                                                    if i == 0:
+                                                        accounts_info['shareholders_funds_current'] = financial_data['net_assets']
+                                                        accounts_info['shareholders_funds'] = f"£{financial_data['net_assets']:,.0f}"
+                                                    elif i == 1:
+                                                        accounts_info['shareholders_funds_previous'] = financial_data['net_assets']
+                                                
+                                                if 'cash_at_bank' in financial_data:
+                                                    year_data['cash_at_bank'] = financial_data['cash_at_bank']
+                                                    if i == 0:
+                                                        accounts_info['cash_at_bank_current'] = financial_data['cash_at_bank']
+                                                        accounts_info['cash_at_bank'] = f"£{financial_data['cash_at_bank']:,.0f}"
+                                                    elif i == 1:
+                                                        accounts_info['cash_at_bank_previous'] = financial_data['cash_at_bank']
+                                                
+                                                if 'turnover' in financial_data:
+                                                    year_data['turnover'] = financial_data['turnover']
+                                                    if i == 0:
+                                                        accounts_info['turnover_current'] = financial_data['turnover']
+                                                        accounts_info['turnover'] = f"£{financial_data['turnover']:,.0f}"
+                                                    elif i == 1:
+                                                        accounts_info['turnover_previous'] = financial_data['turnover']
+                                                
+                                                if 'profit_before_tax' in financial_data:
+                                                    year_data['profit_before_tax'] = financial_data['profit_before_tax']
+                                                
+                                                if 'employees' in financial_data:
+                                                    year_data['employees'] = financial_data['employees']
+                                                    if i == 0:
+                                                        accounts_info['employee_count'] = financial_data['employees']
+                                                
+                                                # Map period information
+                                                if 'period_start' in financial_data:
+                                                    year_data['period_start'] = financial_data['period_start']
+                                                if 'period_end' in financial_data:
+                                                    year_data['period_end'] = financial_data['period_end']
+                                                if 'reporting_date' in financial_data:
+                                                    year_data['reporting_date'] = financial_data['reporting_date']
+                                                
+                                                if 'total_equity' in financial_data:
+                                                    year_data['total_equity'] = financial_data['total_equity']
+                                                
+                                                if 'employees' in financial_data:
+                                                    year_data['employees'] = financial_data['employees']
+                                                    if i == 0:
+                                                        accounts_info['employee_count'] = financial_data['employees']
+                                                
+                                                if 'trade_debtors' in financial_data:
+                                                    year_data['trade_debtors'] = financial_data['trade_debtors']
+                                                
+                                                print(f"[IXBRL] Successfully extracted financial data via web URL: {financial_data}")
+                                            else:
+                                                print(f"[IXBRL] No financial data extracted from web URL document")
+                                        else:
+                                            print(f"[IXBRL] Direct web URL failed: {direct_response.status_code}")
+                                    except Exception as web_e:
+                                        print(f"[IXBRL] Error accessing direct web URL: {web_e}")
+                                
+                                # Final fallback: Try to extract from filing description
+                                if not any([year_data.get('shareholders_funds'), year_data.get('cash_at_bank')]):
+                                    description = filing.get('description', '').lower()
+                                    
+                                    # Look for financial figures in the description
+                                    financial_figures = re.findall(r'£([\d,]+(?:\.\d{2})?)', description)
+                                    if financial_figures:
+                                        try:
+                                            # Convert to numbers and find the largest (likely to be turnover)
+                                            figure_values = [float(f.replace(',', '')) for f in financial_figures]
+                                            largest_figure = max(figure_values)
+                                            
+                                            # Only use if it's a reasonable amount (not just a small fee)
+                                            if largest_figure > 1000:
+                                                year_data['turnover'] = largest_figure
+                                                if i == 0:
+                                                    accounts_info['turnover_current'] = largest_figure
+                                                    accounts_info['turnover'] = f"£{largest_figure:,.0f}"
+                                                elif i == 1:
+                                                    accounts_info['turnover_previous'] = largest_figure
+                                        except:
+                                            pass
                             
                             # Log what we found for debugging
                             if any([year_data.get('turnover'), year_data.get('shareholders_funds'), year_data.get('cash_at_bank')]):
@@ -560,6 +699,31 @@ class ExternalDataService:
                     
                     accounts_info['detailed_financials'] = financial_history
                     accounts_info['years_of_data'] = len(financial_history)
+                    
+                    # Fix year display - calculate financial year from filing date
+                    for year_data in financial_history:
+                        filing_date = year_data.get('filing_date')
+                        if filing_date:
+                            try:
+                                from datetime import datetime
+                                filing_dt = datetime.strptime(filing_date, '%Y-%m-%d')
+                                filing_year = filing_dt.year
+                                filing_month = filing_dt.month
+                                
+                                # UK companies typically file accounts 9 months after financial year end
+                                # Most companies have Dec 31 year-end, so:
+                                # - Filed Sep 2025 = 2024 financial year (filed 9 months after Dec 2024)
+                                # - Filed Jul 2024 = 2023 financial year (filed 7 months after Dec 2023)
+                                # - Filed Jun 2021 = 2020 financial year (filed 6 months after Dec 2020)
+                                
+                                # For this company, all filings appear to be previous year's accounts
+                                financial_year = filing_year - 1
+                                
+                                # Set the financial year end date
+                                year_data['financial_year_end'] = f"{financial_year}-12-31"
+                                year_data['financial_year'] = str(financial_year)
+                            except:
+                                pass
                     
                     # Calculate trends and growth
                     if len(financial_history) >= 2:
@@ -692,10 +856,11 @@ class ExternalDataService:
                         except:
                             pass
                     
-                    # Set final employee estimates
-                    accounts_info['employees'] = estimated_employees or base_estimate
-                    accounts_info['employee_range'] = employee_range or base_estimate
-                    accounts_info['employee_count'] = estimated_employees
+                    # Set final employee estimates - only if we don't have iXBRL data
+                    if not accounts_info.get('employee_count'):
+                        accounts_info['employees'] = estimated_employees or base_estimate
+                        accounts_info['employee_range'] = employee_range or base_estimate
+                        accounts_info['employee_count'] = estimated_employees
                     
                     # Extract active directors information
                     active_directors = []
@@ -840,7 +1005,10 @@ class ExternalDataService:
                 'contact_info': None,
                 'services': None,
                 'social_media': None,
-                'key_phrases': None
+                'key_phrases': None,
+                'locations': None,
+                'additional_sites': None,
+                'addresses': None
             }
             
             if website:
@@ -889,6 +1057,12 @@ class ExternalDataService:
                         
                         web_data['key_phrases'] = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)[:20]
                         
+                        # Extract location and address information
+                        locations, addresses, additional_sites = self._extract_location_info(soup, text_content)
+                        web_data['locations'] = locations
+                        web_data['addresses'] = addresses
+                        web_data['additional_sites'] = additional_sites
+                        
                 except Exception as e:
                     print(f"Error scraping website {website}: {e}")
             
@@ -913,7 +1087,8 @@ class ExternalDataService:
             results = {
                 'linkedin': self.get_linkedin_company_data(company_name, website),
                 'companies_house': self.get_companies_house_data(company_name, company_number),
-                'website': self.get_web_company_data(company_name, website)
+                'website': self.get_web_company_data(company_name, website),
+                'google_maps': self.get_google_maps_data(company_name, website)
             }
             
             # Combine successful results
@@ -942,3 +1117,264 @@ class ExternalDataService:
                 'error': f'Comprehensive data extraction failed: {str(e)}',
                 'data': {}
             }
+    
+    def _extract_location_info(self, soup, text_content: str) -> tuple:
+        """Extract location, address, and additional site information from website"""
+        locations = []
+        addresses = []
+        additional_sites = []
+        
+        try:
+            # Extract addresses using regex patterns
+            # UK postcode pattern
+            postcode_pattern = r'\b[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}\b'
+            postcodes = re.findall(postcode_pattern, text_content, re.IGNORECASE)
+            addresses.extend(postcodes)
+            
+            # Look for address-like patterns
+            address_patterns = [
+                r'\d+\s+[A-Za-z\s]+(?:Street|Road|Avenue|Lane|Close|Drive|Way|Place|Court|Grove|Hill|Park|Gardens?|Square|Terrace|Crescent|Mews|Manor|House|Building|Centre|Center|Business Park|Industrial Estate|Trading Estate)\b',
+                r'\b[A-Za-z\s]+(?:Street|Road|Avenue|Lane|Close|Drive|Way|Place|Court|Grove|Hill|Park|Gardens?|Square|Terrace|Crescent|Mews|Manor|House|Building|Centre|Center|Business Park|Industrial Estate|Trading Estate)\b'
+            ]
+            
+            for pattern in address_patterns:
+                matches = re.findall(pattern, text_content, re.IGNORECASE)
+                for match in matches:
+                    # Clean up the match and add if it looks like a real address
+                    cleaned = re.sub(r'\s+', ' ', match.strip())
+                    if len(cleaned) > 10 and len(cleaned) < 100:  # Reasonable address length
+                        addresses.append(cleaned)
+            
+            # Look for location mentions in specific contexts
+            location_contexts = [
+                r'office[s]?\s+in\s+([A-Za-z\s,]+)',
+                r'located\s+in\s+([A-Za-z\s,]+)',
+                r'based\s+in\s+([A-Za-z\s,]+)',
+                r'serving\s+([A-Za-z\s,]+)',
+                r'covering\s+([A-Za-z\s,]+)',
+                r'operating\s+in\s+([A-Za-z\s,]+)'
+            ]
+            
+            for pattern in location_contexts:
+                matches = re.findall(pattern, text_content, re.IGNORECASE)
+                for match in matches:
+                    cleaned = re.sub(r'\s+', ' ', match.strip())
+                    if len(cleaned) > 2 and len(cleaned) < 50:
+                        locations.append(cleaned)
+            
+            # Look for "Our Locations", "Contact Us", "Find Us" sections
+            location_sections = soup.find_all(['div', 'section', 'p'], string=re.compile(r'(?:our\s+)?locations?|contact\s+us|find\s+us|visit\s+us|office[s]?|address[es]?', re.IGNORECASE))
+            for section in location_sections:
+                # Look for addresses in nearby elements
+                parent = section.parent if section.parent else section
+                for elem in parent.find_all(['p', 'div', 'span', 'li', 'td']):
+                    text = elem.get_text().strip()
+                    if any(keyword in text.lower() for keyword in ['street', 'road', 'avenue', 'lane', 'close', 'drive', 'way', 'place', 'point', 'barn', 'farm', 'industrial', 'estate']):
+                        addresses.append(text)
+            
+            # Look for structured location data in tables or lists
+            for table in soup.find_all(['table', 'ul', 'ol']):
+                for row in table.find_all(['tr', 'li']):
+                    row_text = row.get_text().strip()
+                    if any(keyword in row_text.lower() for keyword in ['office', 'location', 'address', 'site']):
+                        # Extract addresses from this row
+                        for elem in row.find_all(['td', 'span', 'p', 'div']):
+                            elem_text = elem.get_text().strip()
+                            if any(keyword in elem_text.lower() for keyword in ['street', 'road', 'avenue', 'lane', 'close', 'drive', 'way', 'place', 'point', 'barn', 'farm', 'industrial', 'estate']):
+                                addresses.append(elem_text)
+            
+            # Look for location information in navigation menus
+            for nav in soup.find_all(['nav', 'ul']):
+                for link in nav.find_all('a'):
+                    link_text = link.get_text().strip().lower()
+                    if any(keyword in link_text for keyword in ['location', 'office', 'contact', 'address', 'site']):
+                        # Check if the link leads to a page with address info
+                        href = link.get('href', '')
+                        if href and ('contact' in href.lower() or 'location' in href.lower() or 'office' in href.lower()):
+                            # This could be a location page
+                            pass
+            
+            # Look for multiple office/site mentions
+            site_patterns = [
+                r'(?:office|site|location|branch|depot|facility|premises)\s+(?:in|at)\s+([A-Za-z\s,]+)',
+                r'(?:our|the)\s+(?:office|site|location|branch|depot|facility|premises)\s+in\s+([A-Za-z\s,]+)',
+                r'([A-Za-z\s]+)\s+(?:office|site|location|branch|depot|facility|premises)'
+            ]
+            
+            for pattern in site_patterns:
+                matches = re.findall(pattern, text_content, re.IGNORECASE)
+                for match in matches:
+                    cleaned = re.sub(r'\s+', ' ', match.strip())
+                    if len(cleaned) > 2 and len(cleaned) < 50:
+                        additional_sites.append(cleaned)
+            
+            # Remove duplicates and clean up
+            addresses = list(set([addr.strip() for addr in addresses if addr.strip()]))
+            locations = list(set([loc.strip() for loc in locations if loc.strip()]))
+            additional_sites = list(set([site.strip() for site in additional_sites if site.strip()]))
+            
+        except Exception as e:
+            print(f"Error extracting location info: {e}")
+        
+        return locations[:10], addresses[:10], additional_sites[:10]
+    
+    def get_google_maps_data(self, company_name: str, website: str = None) -> Dict[str, Any]:
+        """
+        Get company location data from Google Maps Places API v1
+        """
+        try:
+            # Get Google Maps API key from settings
+            google_api_key = self._get_api_key('google_maps')
+            
+            if not google_api_key:
+                return {
+                    'success': False,
+                    'error': 'Google Maps API key not configured',
+                    'data': {}
+                }
+            
+            maps_data = {
+                'locations': [],
+                'addresses': [],
+                'phone_numbers': [],
+                'business_hours': [],
+                'ratings': [],
+                'place_id': None,
+                'additional_locations': []
+            }
+            
+            # Search for all locations using Google Places API v1
+            search_queries = [company_name]
+            
+            # Add variations for better coverage
+            variations = [
+                f"{company_name} office",
+                f"{company_name} branch", 
+                f"{company_name} location",
+                f"{company_name} uk",
+                f"{company_name} ltd"
+            ]
+            search_queries.extend(variations)
+            
+            all_locations = []
+            
+            for query in search_queries:
+                # Use Google Places API v1 Text Search
+                search_url = "https://places.googleapis.com/v1/places:searchText"
+                headers = {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': google_api_key,
+                    'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType'
+                }
+                
+                payload = {
+                    'textQuery': query
+                }
+                
+                response = self.session.post(search_url, headers=headers, json=payload, timeout=15)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if data.get('places'):
+                        place_ids = [place['id'] for place in data['places']]
+                        
+                        # Get detailed information for each place
+                        for place_id in place_ids:
+                            details = self._get_google_place_details_v1(place_id, google_api_key)
+                            if details:
+                                all_locations.append(details)
+            
+            # De-duplicate locations by address
+            unique_locations = {}
+            for location in all_locations:
+                address_key = (location.get('address') or '').lower().strip()
+                if address_key and address_key not in unique_locations:
+                    unique_locations[address_key] = location
+            
+            # Convert back to list and populate maps_data
+            maps_data['locations'] = list(unique_locations.values())
+            
+            # Extract addresses and other data
+            for location in maps_data['locations']:
+                if location.get('address'):
+                    maps_data['addresses'].append(location['address'])
+                if location.get('phone'):
+                    maps_data['phone_numbers'].append(location['phone'])
+                if location.get('rating'):
+                    maps_data['ratings'].append(location['rating'])
+            
+            return {
+                'success': True,
+                'data': maps_data,
+                'source': 'google_maps_api_v1'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Google Maps API error: {str(e)}',
+                'data': {}
+            }
+    
+    def _search_google_places(self, query: str, api_key: str) -> List[Dict]:
+        """Search Google Places with a specific query"""
+        try:
+            places_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+            params = {
+                'query': query,
+                'key': api_key,
+                'fields': 'place_id,name,formatted_address,geometry,types,rating,formatted_phone_number'
+            }
+            
+            response = self.session.get(places_url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status') == 'OK' and data.get('results'):
+                    return [{
+                        'name': place.get('name', ''),
+                        'address': place.get('formatted_address', ''),
+                        'phone': place.get('formatted_phone_number', ''),
+                        'rating': place.get('rating', 0),
+                        'place_id': place.get('place_id', '')
+                    } for place in data['results']]
+            
+            return []
+            
+        except Exception as e:
+            print(f"Error searching Google Places: {e}")
+            return []
+    
+    def _get_google_place_details_v1(self, place_id: str, api_key: str) -> Dict:
+        """Get detailed information about a specific place using Places API v1"""
+        try:
+            details_url = f"https://places.googleapis.com/v1/places/{place_id}"
+            headers = {
+                'X-Goog-Api-Key': api_key
+            }
+            params = {
+                'fields': 'id,displayName,formattedAddress,addressComponents,location,internationalPhoneNumber,websiteUri,rating,userRatingCount,primaryType'
+            }
+            
+            response = self.session.get(details_url, headers=headers, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                # Convert v1 response to our expected format
+                return {
+                    'name': data.get('displayName', {}).get('text', ''),
+                    'address': data.get('formattedAddress', ''),
+                    'phone': data.get('internationalPhoneNumber', ''),
+                    'website': data.get('websiteUri', ''),
+                    'rating': data.get('rating', 0),
+                    'location': data.get('location', {}),
+                    'place_id': data.get('id', ''),
+                    'type': data.get('primaryType', '')
+                }
+            
+            return {}
+            
+        except Exception as e:
+            print(f"Error getting place details: {e}")
+            return {}

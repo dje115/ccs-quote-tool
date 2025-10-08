@@ -187,6 +187,30 @@ class CustomerIntelligenceService:
                         company_info += f"\n- Website Description: {web['website_description']}"
                     if web.get('key_phrases'):
                         company_info += f"\n- Key Phrases: {', '.join([phrase[0] for phrase in web['key_phrases'][:10]])}"
+                
+                if external_data.get('google_maps'):
+                    maps = external_data['google_maps']
+                    company_info += f"\nGoogle Maps Location Data:"
+                    if maps.get('locations'):
+                        company_info += f"\n- Primary Locations: {len(maps['locations'])} found"
+                        for i, location in enumerate(maps['locations'][:5]):  # Show first 5 locations
+                            company_info += f"\n  Location {i+1}: {location.get('name', 'Unknown')}"
+                            company_info += f"\n    Address: {location.get('address', 'N/A')}"
+                            if location.get('phone'):
+                                company_info += f"\n    Phone: {location['phone']}"
+                            if location.get('rating'):
+                                company_info += f"\n    Rating: {location['rating']}/5"
+                    
+                    if maps.get('additional_locations'):
+                        company_info += f"\n- Additional Locations: {len(maps['additional_locations'])} found"
+                        for i, location in enumerate(maps['additional_locations'][:3]):  # Show first 3 additional
+                            company_info += f"\n  Additional {i+1}: {location.get('name', 'Unknown')}"
+                            company_info += f"\n    Address: {location.get('address', 'N/A')}"
+                    
+                    if maps.get('addresses'):
+                        company_info += f"\n- All Addresses Found: {len(maps['addresses'])}"
+                        for addr in maps['addresses'][:5]:  # Show first 5 addresses
+                            company_info += f"\n  - {addr}"
             
             prompt = f"""
             Analyze this company and provide comprehensive business intelligence:
@@ -228,11 +252,15 @@ class CustomerIntelligenceService:
 
             11. **Risk Factors**: What challenges or risks might affect their IT projects based on their financial position?
 
-            12. **Address and Location Analysis**: Based on the company information, identify:
+            12. **Address and Location Analysis**: Based on the company information and website data, identify:
                 - Primary business address (if different from registered address)
-                - Potential additional sites/locations mentioned
-                - Geographic spread of operations
+                - ALL additional sites/locations mentioned on their website (look for multiple offices, branches, facilities)
+                - Geographic spread of operations (cities, regions, counties they serve)
                 - Any specific location requirements or constraints
+                - Multiple office locations, branches, or facilities (companies often have 2-5 locations)
+                - Service areas and coverage regions
+                - Look carefully for location pages, contact pages, or "Our Locations" sections
+                - Extract complete addresses including postcodes for each location
 
             Please respond in JSON format with these exact fields:
             {{
@@ -270,7 +298,7 @@ class CustomerIntelligenceService:
                     {"role": "system", "content": "You are a business intelligence analyst specializing in UK companies and IT infrastructure needs. Provide accurate, realistic assessments based on company information. Always respond with valid JSON format."},
                     {"role": "user", "content": prompt}
                 ],
-                max_completion_tokens=100000,  # Large token limit for GPT-5 reasoning + comprehensive response
+                max_completion_tokens=50000,  # Conservative token limit for reliable AI analysis
                 timeout=180.0
             )
             
@@ -302,6 +330,24 @@ class CustomerIntelligenceService:
             if hasattr(e, 'response'):
                 print(f"API response status: {e.response.status_code if hasattr(e.response, 'status_code') else 'unknown'}")
                 print(f"API response body: {e.response.text if hasattr(e.response, 'text') else 'unknown'}")
+            
+            # Check for specific error types
+            error_message = str(e)
+            if "status: 500" in error_message:
+                return {
+                    'success': False,
+                    'error': 'AI analysis failed: Server error (500). This may be due to token limit or API timeout. Please try again.'
+                }
+            elif "timeout" in error_message.lower():
+                return {
+                    'success': False,
+                    'error': 'AI analysis failed: Request timeout. The analysis may be too complex. Please try again.'
+                }
+            elif "token" in error_message.lower():
+                return {
+                    'success': False,
+                    'error': 'AI analysis failed: Token limit exceeded. Please try again.'
+                }
             
             return {
                 'success': False,
@@ -370,6 +416,9 @@ class CustomerIntelligenceService:
                 
                 if external_data.get('website'):
                     customer.website_data = json.dumps(external_data['website'])
+                
+                if external_data.get('google_maps'):
+                    customer.google_maps_data = json.dumps(external_data['google_maps'])
             
             return {
                 'success': True,
