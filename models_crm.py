@@ -94,8 +94,12 @@ class Customer(db.Model):
     linkedin_url = Column(String(255), nullable=True)
     linkedin_data = Column(Text, nullable=True)  # LinkedIn data as JSON
     companies_house_data = Column(Text, nullable=True)  # Companies House data as JSON
-    google_maps_data = Column(Text, nullable=True)  # Google Maps location data as JSON
+    google_maps_data = Column(Text, nullable=True)      # Google Maps location data as JSON
     website_data = Column(Text, nullable=True)  # Website scraping data as JSON
+    
+    # Address management
+    excluded_addresses = Column(Text, nullable=True)  # JSON array of excluded address IDs/names
+    manual_addresses = Column(Text, nullable=True)    # JSON array of manually added addresses
     
     # AI-Generated Address Analysis
     primary_address = Column(Text, nullable=True)  # AI-detected primary business address

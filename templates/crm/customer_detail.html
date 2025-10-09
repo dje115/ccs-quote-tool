@@ -76,6 +76,12 @@
                             {% if customer.billing_postcode %}
                             <br><span class="text-muted">{{ customer.billing_postcode }}</span>
                             {% endif %}
+                            <br>
+                            <a href="https://www.google.com/maps/search/?api=1&query={{ customer.billing_address|urlencode }}{% if customer.billing_postcode %} {{ customer.billing_postcode|urlencode }}{% endif %}" 
+                               target="_blank" 
+                               class="btn btn-outline-primary btn-sm mt-1">
+                                <i class="fas fa-map-marker-alt"></i> Open in Google Maps
+                            </a>
                         </div>
                         {% endif %}
                         
@@ -86,6 +92,12 @@
                             {% if customer.shipping_postcode %}
                             <br><span class="text-muted">{{ customer.shipping_postcode }}</span>
                             {% endif %}
+                            <br>
+                            <a href="https://www.google.com/maps/search/?api=1&query={{ customer.shipping_address|urlencode }}{% if customer.shipping_postcode %} {{ customer.shipping_postcode|urlencode }}{% endif %}" 
+                               target="_blank" 
+                               class="btn btn-outline-primary btn-sm mt-1">
+                                <i class="fas fa-map-marker-alt"></i> Open in Google Maps
+                            </a>
                         </div>
                         {% endif %}
                         
@@ -102,6 +114,12 @@
                             <div class="mb-2">
                                 <strong>Primary Business Address:</strong><br>
                                 <span class="text-muted">{{ customer.primary_address }}</span>
+                                <br>
+                                <a href="https://www.google.com/maps/search/?api=1&query={{ customer.primary_address|urlencode }}" 
+                                   target="_blank" 
+                                   class="btn btn-outline-primary btn-sm mt-1">
+                                    <i class="fas fa-map-marker-alt"></i> Open in Google Maps
+                                </a>
                             </div>
                             {% endif %}
                             
@@ -121,24 +139,152 @@
                             
                             {% if customer.google_maps_data %}
                             <div class="mb-2">
-                                <strong>Google Maps Locations:</strong><br>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong>Google Maps Locations:</strong>
+                                    <button type="button" class="btn btn-sm btn-outline-success" onclick="showAddAddressModal()">
+                                        <i class="fas fa-plus"></i> Add Address
+                                    </button>
+                                </div>
                                 {% set maps_data = customer.google_maps_data|from_json %}
-                                {% if maps_data.locations and maps_data.locations|length > 0 %}
-                                    {% for location in maps_data.locations %}
-                                        <div class="small mb-1">
-                                            <strong>{{ location.name }}</strong><br>
-                                            <span class="text-muted">{{ location.address }}</span>
-                                            {% if location.phone %}
-                                                <br><i class="fas fa-phone"></i> {{ location.phone }}
-                                            {% endif %}
-                                            {% if location.rating %}
-                                                <br><i class="fas fa-star text-warning"></i> {{ location.rating }}/5
-                                            {% endif %}
+                                {% set excluded_addresses = customer.excluded_addresses|from_json if customer.excluded_addresses else [] %}
+                                {% set manual_addresses = customer.manual_addresses|from_json if customer.manual_addresses else [] %}
+                                
+                                <!-- Manual Addresses -->
+                                {% if manual_addresses and manual_addresses|length > 0 %}
+                                    {% for address in manual_addresses %}
+                                        <div class="small mb-2 p-2 border rounded bg-light" id="manual_address_{{ loop.index }}">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <input type="checkbox" class="form-check-input me-2 address-checkbox" 
+                                                               id="manual_checkbox_{{ loop.index }}"
+                                                               data-address-name="{{ address.name }}"
+                                                               data-address-address="{{ address.address }}"
+                                                               data-address-phone="{{ address.phone or '' }}"
+                                                               data-address-type="manual">
+                                                        <strong><i class="fas fa-user-plus text-success"></i> {{ address.name }}</strong>
+                                                    </div>
+                                                    <span class="text-muted">{{ address.address }}</span>
+                                                    {% if address.phone %}
+                                                        <br><i class="fas fa-phone"></i> {{ address.phone }}
+                                                    {% endif %}
+                                                    {% if address.notes %}
+                                                        <br><small class="text-info">{{ address.notes }}</small>
+                                                    {% endif %}
+                                                    <br>
+                                                    <a href="https://www.google.com/maps/search/?api=1&query={{ address.address|urlencode }}" 
+                                                       target="_blank" 
+                                                       class="btn btn-outline-primary btn-sm mt-1">
+                                                        <i class="fas fa-map-marker-alt"></i> Open in Google Maps
+                                                    </a>
+                                                </div>
+                                                <div class="text-end">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                            onclick="removeManualAddress('{{ address.name }}', {{ customer.id }})">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     {% endfor %}
-                                {% else %}
-                                    <span class="text-muted">No Google Maps locations found</span>
                                 {% endif %}
+                                
+                                <!-- Google Maps Addresses -->
+                                {% if maps_data.locations and maps_data.locations|length > 0 %}
+                                    {% for location in maps_data.locations %}
+                                        {% set location_id = location.name|replace(' ', '_')|replace('.', '_')|replace(',', '_') %}
+                                        {% if location_id not in excluded_addresses %}
+                                            <div class="small mb-2 p-2 border rounded" id="address_{{ location_id }}">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div class="flex-grow-1">
+                                                        <div class="d-flex align-items-center mb-1">
+                                                            <input type="checkbox" class="form-check-input me-2 address-checkbox" 
+                                                                   id="maps_checkbox_{{ loop.index }}"
+                                                                   data-address-name="{{ location.name }}"
+                                                                   data-address-address="{{ location.address }}"
+                                                                   data-address-phone="{{ location.phone or '' }}"
+                                                                   data-address-type="google_maps">
+                                                            <strong>{{ location.name }}</strong>
+                                                        </div>
+                                                        <span class="text-muted">{{ location.address }}</span>
+                                                        {% if location.phone %}
+                                                            <br><i class="fas fa-phone"></i> {{ location.phone }}
+                                                        {% endif %}
+                                                        {% if location.rating %}
+                                                            <br><i class="fas fa-star text-warning"></i> {{ location.rating }}/5
+                                                        {% endif %}
+                                                        <br>
+                                                        <a href="https://www.google.com/maps/search/?api=1&query={{ location.address|urlencode }}" 
+                                                           target="_blank" 
+                                                           class="btn btn-outline-primary btn-sm mt-1">
+                                                            <i class="fas fa-map-marker-alt"></i> Open in Google Maps
+                                                        </a>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" 
+                                                                   id="exclude_{{ location_id }}"
+                                                                   onchange="toggleAddressExclusion('{{ location_id }}', {{ customer.id }}, this.checked)">
+                                                            <label class="form-check-label small text-muted" for="exclude_{{ location_id }}">
+                                                                Not this business
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    {% if not manual_addresses or manual_addresses|length == 0 %}
+                                        <span class="text-muted">No Google Maps locations found</span>
+                                    {% endif %}
+                                {% endif %}
+                                
+                                <!-- Excluded Addresses (collapsed) -->
+                                {% if excluded_addresses and excluded_addresses|length > 0 %}
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#excludedAddresses" aria-expanded="false">
+                                            <i class="fas fa-eye-slash"></i> Show Excluded Addresses ({{ excluded_addresses|length }})
+                                        </button>
+                                        <div class="collapse mt-2" id="excludedAddresses">
+                                            {% for location in maps_data.locations %}
+                                                {% set location_id = location.name|replace(' ', '_')|replace('.', '_')|replace(',', '_') %}
+                                                {% if location_id in excluded_addresses %}
+                                                    <div class="small mb-2 p-2 border rounded bg-light text-muted">
+                                                        <div class="d-flex justify-content-between align-items-start">
+                                                            <div>
+                                                                <strong><i class="fas fa-ban text-danger"></i> {{ location.name }}</strong><br>
+                                                                <span class="text-muted">{{ location.address }}</span>
+                                                                <br><small class="text-muted">Excluded from display</small>
+                                                            </div>
+                                                            <div class="text-end">
+                                                                <button type="button" class="btn btn-sm btn-outline-success" 
+                                                                        onclick="toggleAddressExclusion('{{ location_id }}', {{ customer.id }}, false)">
+                                                                    <i class="fas fa-undo"></i> Restore
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Add Selected Addresses to Campaign -->
+                            {% if (customer.google_maps_data and (customer.google_maps_data|from_json).locations|length > 0) or (customer.manual_addresses and (customer.manual_addresses|from_json)|length > 0) %}
+                            <div class="mt-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6><i class="fas fa-map-marker-alt text-success"></i> Address Selection</h6>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="addSelectedAddressesToCampaign()" title="Add selected addresses to lead generation campaign" id="addToCampaignBtn" disabled>
+                                        <i class="fas fa-plus"></i> Add Selected (<span id="selectedCount">0</span>)
+                                    </button>
+                                </div>
+                                <p class="text-muted small">
+                                    Select interesting addresses to create targeted lead generation campaigns. Perfect for finding potential customers at different locations.
+                                </p>
                             </div>
                             {% endif %}
                         </div>
@@ -276,6 +422,15 @@
                                             {% if director.date_of_birth %}
                                             <p class="mb-1"><i class="fas fa-birthday-cake"></i> Born {{ director.date_of_birth }}</p>
                                             {% endif %}
+                                        </div>
+                                        
+                                        <!-- Add as Contact Button -->
+                                        <div class="mt-2">
+                                            <button type="button" 
+                                                    class="btn btn-outline-primary btn-sm w-100"
+                                                    onclick="addDirectorAsContact('{{ director.name|e }}', '{{ director.occupation|default('')|e }}', '{{ director.role|default('Director')|e }}', {{ customer.id }})">
+                                                <i class="fas fa-user-plus"></i> Add as Contact
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -824,14 +979,23 @@ function showCompaniesHouseData() {
     }
     if (data.registered_office_address) {
         content += `<p><strong>Registered Address:</strong><br>`;
+        let fullAddress = '';
         if (typeof data.registered_office_address === 'object') {
+            fullAddress = `${data.registered_office_address.address_line_1 || ''} ${data.registered_office_address.locality || ''} ${data.registered_office_address.postal_code || ''}`.trim();
             content += `${data.registered_office_address.address_line_1 || ''}<br>`;
             content += `${data.registered_office_address.locality || ''}<br>`;
             content += `${data.registered_office_address.postal_code || ''}`;
         } else {
+            fullAddress = data.registered_office_address;
             content += data.registered_office_address;
         }
         content += '</p>';
+        if (fullAddress) {
+            const encodedAddress = encodeURIComponent(fullAddress);
+            content += `<a href="https://www.google.com/maps/search/?api=1&query=${encodedAddress}" target="_blank" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-map-marker-alt"></i> Open in Google Maps
+            </a>`;
+        }
     }
     if (data.sic_codes && data.sic_codes.length > 0) {
         content += '<p><strong>SIC Codes:</strong><br>';
@@ -1315,7 +1479,7 @@ function addCompetitorsToCampaign() {
                             <div id="preview-competitors"></div>
                         </div>
                         <div class="alert alert-warning">
-                            <i class="fas fa-info-circle"></i> The campaign will be named "Competitors of [Company Name] - [Date Time]" and will run automatically in the background.
+                            <i class="fas fa-info-circle"></i> The campaign will be named "<span id="campaign-name-preview"></span>" and will run automatically in the background.
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1343,11 +1507,28 @@ function addCompetitorsToCampaign() {
     // Show preview of competitors
     const competitorsText = document.getElementById('competitors-text').textContent;
     document.getElementById('preview-competitors').textContent = competitorsText.substring(0, 200) + '...';
+    
+    // Generate campaign name preview
+    const sourceCompany = document.querySelector('h2').textContent.trim();
+    console.log('Source company found:', sourceCompany);
+    
+    const now = new Date();
+    const dateTime = now.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).replace(/,/g, '').replace(/\//g, '-').replace(/:/g, '-');
+    
+    const campaignName = `Competitors of ${sourceCompany} - ${dateTime}`;
+    console.log('Campaign name generated:', campaignName);
+    document.getElementById('campaign-name-preview').textContent = campaignName;
 }
 
 function createCompetitorsCampaign() {
     const competitorsText = document.getElementById('competitors-text').textContent;
-    const sourceCompany = document.querySelector('h1').textContent.trim(); // Get company name from page title
+    const sourceCompany = document.querySelector('h2').textContent.trim(); // Get company name from page title
     
     // Show loading state
     const button = event.target;
@@ -1385,5 +1566,501 @@ function createCompetitorsCampaign() {
         button.disabled = false;
     });
 }
+
+// Function to add director as contact
+function addDirectorAsContact(fullName, occupation, role, customerId) {
+    // Parse the full name to get first and last name
+    // Handle both "First Last" and "Last, First" formats
+    let firstName = '';
+    let lastName = '';
+    
+    if (fullName.includes(',')) {
+        // Format: "Last, First Middle" or "Last, First"
+        const parts = fullName.trim().split(',');
+        lastName = parts[0].trim();
+        const firstPart = parts[1] ? parts[1].trim() : '';
+        firstName = firstPart;
+    } else {
+        // Format: "First Last" or "First Middle Last"
+        const nameParts = fullName.trim().split(' ');
+        firstName = nameParts[0] || '';
+        lastName = nameParts.slice(1).join(' ') || '';
+    }
+    
+    // Determine the job title - prefer occupation, fallback to role
+    const jobTitle = occupation || role || 'Director';
+    
+    // Show confirmation modal
+    const modal = `
+        <div class="modal fade" id="addContactModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add Contact</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Add <strong>${fullName}</strong> as a contact for this customer?</p>
+                        <div class="mb-3">
+                            <label for="contact_first_name" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="contact_first_name" value="${firstName}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="contact_last_name" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="contact_last_name" value="${lastName}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="contact_job_title" class="form-label">Job Title</label>
+                            <input type="text" class="form-control" id="contact_job_title" value="${jobTitle}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="contact_role" class="form-label">Role</label>
+                            <select class="form-select" id="contact_role">
+                                <option value="decision_maker">Decision Maker</option>
+                                <option value="technical">Technical</option>
+                                <option value="finance">Finance</option>
+                                <option value="facilities">Facilities</option>
+                                <option value="it_manager">IT Manager</option>
+                                <option value="general">General</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="createContactFromDirector(${customerId})">Add Contact</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('addContactModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Show modal
+    const modalElement = new bootstrap.Modal(document.getElementById('addContactModal'));
+    modalElement.show();
+}
+
+// Function to create contact from director data
+function createContactFromDirector(customerId) {
+    const firstName = document.getElementById('contact_first_name').value.trim();
+    const lastName = document.getElementById('contact_last_name').value.trim();
+    const jobTitle = document.getElementById('contact_job_title').value.trim();
+    const role = document.getElementById('contact_role').value;
+    
+    if (!firstName || !lastName) {
+        alert('Please provide both first and last name.');
+        return;
+    }
+    
+    // Show loading state
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+    button.disabled = true;
+    
+    // Create contact data
+    const contactData = {
+        first_name: firstName,
+        last_name: lastName,
+        job_title: jobTitle,
+        role: role
+    };
+    
+    // Send request to create contact
+    fetch(`/crm/customers/${customerId}/contacts`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(contactData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addContactModal'));
+            modal.hide();
+            
+            // Show success message
+            alert('Contact added successfully!');
+            
+            // Reload page to show the new contact
+            location.reload();
+        } else {
+            alert('Error adding contact: ' + (data.error || 'Unknown error'));
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding contact. Please try again.');
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+// Address Management Functions
+
+// Function to show add address modal
+function showAddAddressModal() {
+    const modal = `
+        <div class="modal fade" id="addAddressModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add Manual Address</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="address_name" class="form-label">Address Name</label>
+                            <input type="text" class="form-control" id="address_name" placeholder="e.g., London Office, Manchester Branch">
+                        </div>
+                        <div class="mb-3">
+                            <label for="address_address" class="form-label">Full Address</label>
+                            <textarea class="form-control" id="address_address" rows="3" placeholder="Enter full address including postcode"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="address_phone" class="form-label">Phone Number (Optional)</label>
+                            <input type="text" class="form-control" id="address_phone" placeholder="e.g., +44 20 1234 5678">
+                        </div>
+                        <div class="mb-3">
+                            <label for="address_notes" class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="address_notes" rows="2" placeholder="Any additional information about this address"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="addManualAddress()">Add Address</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('addAddressModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Show modal
+    const modalElement = new bootstrap.Modal(document.getElementById('addAddressModal'));
+    modalElement.show();
+}
+
+// Function to add manual address
+function addManualAddress() {
+    const name = document.getElementById('address_name').value.trim();
+    const address = document.getElementById('address_address').value.trim();
+    const phone = document.getElementById('address_phone').value.trim();
+    const notes = document.getElementById('address_notes').value.trim();
+    
+    if (!name || !address) {
+        alert('Please provide both address name and full address.');
+        return;
+    }
+    
+    // Show loading state
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+    button.disabled = true;
+    
+    // Create address data
+    const addressData = {
+        name: name,
+        address: address,
+        phone: phone,
+        notes: notes
+    };
+    
+    // Get customer ID from the page
+    const customerId = {{ customer.id }};
+    
+    // Send request to add address
+    fetch(`/crm/customers/${customerId}/addresses/manual`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(addressData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addAddressModal'));
+            modal.hide();
+            
+            // Show success message
+            alert('Address added successfully!');
+            
+            // Reload page to show the new address
+            location.reload();
+        } else {
+            alert('Error adding address: ' + (data.error || 'Unknown error'));
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding address. Please try again.');
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+// Function to remove manual address
+function removeManualAddress(addressName, customerId) {
+    if (!confirm(`Are you sure you want to remove "${addressName}"?`)) {
+        return;
+    }
+    
+    fetch(`/crm/customers/${customerId}/addresses/manual`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: addressName })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Address removed successfully!');
+            location.reload();
+        } else {
+            alert('Error removing address: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error removing address. Please try again.');
+    });
+}
+
+// Function to toggle address exclusion
+function toggleAddressExclusion(locationId, customerId, exclude) {
+    const action = exclude ? 'exclude' : 'include';
+    
+    fetch(`/crm/customers/${customerId}/addresses/${action}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ location_id: locationId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (exclude) {
+                // Hide the address element
+                const addressElement = document.getElementById(`address_${locationId}`);
+                if (addressElement) {
+                    addressElement.style.display = 'none';
+                }
+            }
+            // Reload page to update the display
+            location.reload();
+        } else {
+            alert('Error updating address: ' + (data.error || 'Unknown error'));
+            // Reset checkbox
+            const checkbox = document.getElementById(`exclude_${locationId}`);
+            if (checkbox) {
+                checkbox.checked = !exclude;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating address. Please try again.');
+        // Reset checkbox
+        const checkbox = document.getElementById(`exclude_${locationId}`);
+        if (checkbox) {
+            checkbox.checked = !exclude;
+        }
+    });
+}
+
+// Function to update selected count and button state
+function updateAddressSelection() {
+    const checkboxes = document.querySelectorAll('.address-checkbox:checked');
+    const count = checkboxes.length;
+    
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('addToCampaignBtn').disabled = count === 0;
+}
+
+// Function to add selected addresses to campaign
+function addSelectedAddressesToCampaign() {
+    // Get selected addresses only
+    const selectedAddresses = [];
+    const checkboxes = document.querySelectorAll('.address-checkbox:checked');
+    
+    checkboxes.forEach(checkbox => {
+        selectedAddresses.push({
+            name: checkbox.dataset.addressName,
+            address: checkbox.dataset.addressAddress,
+            phone: checkbox.dataset.addressPhone,
+            type: checkbox.dataset.addressType
+        });
+    });
+    
+    if (selectedAddresses.length === 0) {
+        alert('Please select at least one address to add to campaign.');
+        return;
+    }
+    
+    // Create modal for confirmation
+    const modal = `
+        <div class="modal fade" id="addressesModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Create Address-Based Campaign</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>This will create a new lead generation campaign targeting businesses in the same locations as this customer's verified addresses.</p>
+                        <div class="alert alert-info">
+                            <strong>Target locations:</strong>
+                            <div id="preview-addresses"></div>
+                        </div>
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle"></i> The campaign will be named "<span id="address-campaign-name-preview"></span>" and will run automatically in the background.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="createAddressesCampaign()">Create Campaign</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('addressesModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to page
+    document.body.insertAdjacentHTML('beforeend', modal);
+    
+    // Generate campaign name preview
+    const sourceCompany = document.querySelector('h2').textContent.trim();
+    const now = new Date();
+    const dateTime = now.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).replace(/,/g, '').replace(/\//g, '-').replace(/:/g, '-');
+    const campaignName = `Locations of ${sourceCompany} - ${dateTime}`;
+    document.getElementById('address-campaign-name-preview').textContent = campaignName;
+    
+    // Show selected addresses preview
+    const addressesPreview = selectedAddresses.map(addr => 
+        `<div class="small mb-1"><strong>${addr.name}:</strong> ${addr.address}</div>`
+    ).join('');
+    document.getElementById('preview-addresses').innerHTML = addressesPreview;
+    
+    // Show modal
+    const modalElement = new bootstrap.Modal(document.getElementById('addressesModal'));
+    modalElement.show();
+}
+
+// Function to create addresses campaign
+function createAddressesCampaign() {
+    // Get selected addresses only
+    const selectedAddresses = [];
+    const checkboxes = document.querySelectorAll('.address-checkbox:checked');
+    
+    checkboxes.forEach(checkbox => {
+        selectedAddresses.push({
+            name: checkbox.dataset.addressName,
+            address: checkbox.dataset.addressAddress,
+            phone: checkbox.dataset.addressPhone,
+            type: checkbox.dataset.addressType
+        });
+    });
+    
+    // Show loading state
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+    button.disabled = true;
+    
+    // Create campaign data
+    const campaignData = {
+        addresses: selectedAddresses,
+        source_company: document.querySelector('h2').textContent.trim()
+    };
+    
+    // Send request to create campaign
+    fetch('/lead-generation/create-addresses-campaign', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(campaignData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('addressesModal'));
+            modal.hide();
+            
+            // Show success message
+            alert(`Campaign created successfully! ${data.campaign_name} is now running in the background.`);
+            
+            // Optionally redirect to campaign detail
+            if (data.campaign_id) {
+                if (confirm('Would you like to view the campaign details?')) {
+                    window.location.href = `/lead-generation/campaigns/${data.campaign_id}`;
+                }
+            }
+        } else {
+            alert('Error creating campaign: ' + (data.error || 'Unknown error'));
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error creating campaign. Please try again.');
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+// Add event listeners for address checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    // Add change event listeners to all address checkboxes
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('address-checkbox')) {
+            updateAddressSelection();
+        }
+    });
+    
+    // Initialize the selection count
+    updateAddressSelection();
+});
 </script>
 {% endblock %}

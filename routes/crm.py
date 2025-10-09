@@ -271,7 +271,7 @@ def get_technology_recommendations(id):
             'error': str(e)
         }), 500
 
-@crm_bp.route('/crm/customers/<int:id>/contacts/new', methods=['GET', 'POST'])
+@crm_bp.route('/customers/<int:id>/contacts/new', methods=['GET', 'POST'])
 @login_required
 def new_contact(id):
     """Add new contact to customer"""
@@ -344,7 +344,214 @@ def new_contact(id):
                          customer=customer,
                          contact_roles=ContactRole)
 
-@crm_bp.route('/crm/customers/<int:customer_id>/contacts/<int:contact_id>/edit', methods=['GET', 'POST'])
+@crm_bp.route('/customers/<int:customer_id>/contacts', methods=['POST'])
+@login_required
+def create_contact_from_director(customer_id):
+    """Create contact from director data (API endpoint)"""
+    customer = Customer.query.get_or_404(customer_id)
+    
+    try:
+        data = request.get_json()
+        print(f"[CONTACT CREATION] Received data: {data}")
+        
+        # Create new contact
+        contact = Contact(
+            customer_id=customer_id,
+            first_name=data.get('first_name', '').strip(),
+            last_name=data.get('last_name', '').strip(),
+            job_title=data.get('job_title', '').strip(),
+            role=ContactRole(data.get('role', 'general')),
+            email=data.get('email', '').strip(),
+            phone=data.get('phone', '').strip(),
+            notes=f"Added from Companies House director data"
+        )
+        
+        db.session.add(contact)
+        db.session.commit()
+        
+        print(f"[CONTACT CREATION] Successfully created contact: {contact.first_name} {contact.last_name}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Contact created successfully',
+            'contact_id': contact.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[CONTACT CREATION] Error creating contact: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Address Management Routes
+
+@crm_bp.route('/customers/<int:customer_id>/addresses/manual', methods=['POST'])
+@login_required
+def add_manual_address(customer_id):
+    """Add a manual address to customer"""
+    customer = Customer.query.get_or_404(customer_id)
+    
+    try:
+        data = request.get_json()
+        print(f"[ADDRESS ADD] Received data: {data}")
+        
+        # Get existing manual addresses
+        manual_addresses = []
+        if customer.manual_addresses:
+            manual_addresses = json.loads(customer.manual_addresses)
+        
+        # Add new address
+        new_address = {
+            'name': data.get('name', '').strip(),
+            'address': data.get('address', '').strip(),
+            'phone': data.get('phone', '').strip(),
+            'notes': data.get('notes', '').strip(),
+            'added_date': datetime.utcnow().isoformat()
+        }
+        
+        # Check for duplicates
+        for existing in manual_addresses:
+            if existing['name'].lower() == new_address['name'].lower():
+                return jsonify({
+                    'success': False,
+                    'error': f'Address with name "{new_address["name"]}" already exists'
+                }), 400
+        
+        manual_addresses.append(new_address)
+        customer.manual_addresses = json.dumps(manual_addresses)
+        
+        db.session.commit()
+        
+        print(f"[ADDRESS ADD] Successfully added manual address: {new_address['name']}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Address added successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ADDRESS ADD] Error adding manual address: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@crm_bp.route('/customers/<int:customer_id>/addresses/manual', methods=['DELETE'])
+@login_required
+def remove_manual_address(customer_id):
+    """Remove a manual address from customer"""
+    customer = Customer.query.get_or_404(customer_id)
+    
+    try:
+        data = request.get_json()
+        address_name = data.get('name', '').strip()
+        
+        if not address_name:
+            return jsonify({
+                'success': False,
+                'error': 'Address name is required'
+            }), 400
+        
+        # Get existing manual addresses
+        manual_addresses = []
+        if customer.manual_addresses:
+            manual_addresses = json.loads(customer.manual_addresses)
+        
+        # Remove address
+        original_count = len(manual_addresses)
+        manual_addresses = [addr for addr in manual_addresses if addr['name'] != address_name]
+        
+        if len(manual_addresses) == original_count:
+            return jsonify({
+                'success': False,
+                'error': f'Address "{address_name}" not found'
+            }), 404
+        
+        customer.manual_addresses = json.dumps(manual_addresses) if manual_addresses else None
+        
+        db.session.commit()
+        
+        print(f"[ADDRESS REMOVE] Successfully removed manual address: {address_name}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Address removed successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ADDRESS REMOVE] Error removing manual address: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@crm_bp.route('/customers/<int:customer_id>/addresses/<action>', methods=['POST'])
+@login_required
+def toggle_address_exclusion(customer_id, action):
+    """Toggle address exclusion (exclude/include)"""
+    customer = Customer.query.get_or_404(customer_id)
+    
+    try:
+        data = request.get_json()
+        print(f"[ADDRESS EXCLUSION] Received data: {data}")
+        print(f"[ADDRESS EXCLUSION] Action: {action}, Customer ID: {customer_id}")
+        
+        location_id = data.get('location_id', '').strip()
+        
+        if not location_id:
+            print(f"[ADDRESS EXCLUSION] Error: No location_id provided")
+            return jsonify({
+                'success': False,
+                'error': 'Location ID is required'
+            }), 400
+        
+        # Get existing excluded addresses
+        excluded_addresses = []
+        if customer.excluded_addresses:
+            excluded_addresses = json.loads(customer.excluded_addresses)
+        
+        if action == 'exclude':
+            # Add to excluded list
+            if location_id not in excluded_addresses:
+                excluded_addresses.append(location_id)
+                print(f"[ADDRESS EXCLUDE] Added {location_id} to excluded addresses")
+            else:
+                print(f"[ADDRESS EXCLUDE] {location_id} already excluded")
+        elif action == 'include':
+            # Remove from excluded list
+            if location_id in excluded_addresses:
+                excluded_addresses.remove(location_id)
+                print(f"[ADDRESS INCLUDE] Removed {location_id} from excluded addresses")
+            else:
+                print(f"[ADDRESS INCLUDE] {location_id} was not excluded")
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid action. Use "exclude" or "include"'
+            }), 400
+        
+        customer.excluded_addresses = json.dumps(excluded_addresses) if excluded_addresses else None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Address {action}d successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ADDRESS {action.upper()}] Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@crm_bp.route('/customers/<int:customer_id>/contacts/<int:contact_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_contact(customer_id, contact_id):
     """Edit contact"""
@@ -508,7 +715,7 @@ def change_customer_status(customer_id):
             flash(f'Error changing status: {str(e)}', 'danger')
             return redirect(url_for('crm.view_customer', customer_id=customer_id))
 
-@crm_bp.route('/crm/customers/<int:customer_id>/interactions/new', methods=['POST'])
+@crm_bp.route('/customers/<int:customer_id>/interactions/new', methods=['POST'])
 @login_required
 def new_interaction(customer_id):
     """Add new interaction"""

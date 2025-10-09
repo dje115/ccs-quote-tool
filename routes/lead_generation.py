@@ -18,6 +18,7 @@ from models_lead_generation import (
 from models_crm import Customer, CustomerStatus, ContactRole, BusinessSector
 from utils.lead_generation_service import LeadGenerationService
 from sqlalchemy import or_, and_, desc
+import re
 
 lead_generation_bp = Blueprint('lead_generation', __name__)
 
@@ -72,6 +73,20 @@ def map_business_sector_to_enum(sector_value):
         if any(tech_term in sector_lower for tech_term in ['it', 'tech', 'software', 'computer', 'digital', 'cyber']):
             return BusinessSector.TECHNOLOGY
         return BusinessSector.OTHER
+
+def extract_postcode(address):
+    """Extract UK postcode from address string"""
+    if not address:
+        return None
+    
+    # UK postcode pattern (basic)
+    postcode_pattern = r'[A-Z]{1,2}[0-9R][0-9A-Z]? [0-9][A-Z]{2}'
+    match = re.search(postcode_pattern, address.upper())
+    
+    if match:
+        return match.group(0)
+    
+    return None
 
 # Background worker function for long-running campaigns
 def run_campaign_worker(app, campaign_id):
@@ -137,6 +152,12 @@ DEFAULT_PROMPTS = [
         'prompt_type': 'similar_business',
         'description': 'Find businesses similar to a specific company',
         'requires_company_name': True
+    },
+    {
+        'name': 'Competitor Verification',
+        'prompt_type': 'competitor_verification',
+        'description': 'Verify and collect data for identified competitor companies',
+        'requires_company_name': False
     },
     {
         'name': 'Education Sector',
@@ -209,6 +230,143 @@ def dashboard():
                              'new_leads': new_leads,
                              'converted_leads': converted_leads
                          })
+
+@lead_generation_bp.route('/create-addresses-campaign', methods=['POST'])
+@login_required
+def create_addresses_campaign():
+    """Create a lead generation campaign based on verified addresses"""
+    try:
+        data = request.get_json()
+        addresses = data.get('addresses', [])
+        source_company = data.get('source_company', 'Unknown Company')
+        
+        if not addresses:
+            return jsonify({
+                'success': False,
+                'error': 'No addresses provided'
+            }), 400
+        
+        # Generate campaign name
+        now = datetime.utcnow()
+        date_time = now.strftime('%d-%m-%Y %H-%M')
+        campaign_name = f"Locations of {source_company} - {date_time}"
+        
+        # Create campaign
+        campaign = LeadGenerationCampaign(
+            name=campaign_name,
+            description=f"Location-based lead generation campaign targeting businesses in the same areas as {source_company}. Automatically generated from verified addresses.",
+            prompt_type='location_based',
+            postcode="LE1 1AA",  # Default Leicester postcode
+            distance_miles=50,   # Reasonable search radius
+            max_results=len(addresses) * 10,  # Allow for multiple leads per location
+            created_by=current_user.id,
+            status=LeadGenerationStatus.DRAFT,
+            search_criteria_used={"target_locations": [addr['name'] for addr in addresses]}
+        )
+        
+        db.session.add(campaign)
+        db.session.flush()  # Get campaign ID
+        
+        # Create initial leads for each selected address
+        for address in addresses:
+            # Check for duplicates
+            existing_lead = Lead.query.filter_by(
+                company_name=address['name'],
+                created_by=current_user.id
+            ).first()
+            
+            if existing_lead:
+                print(f"[ADDRESS CAMPAIGN] Skipping duplicate: {address['name']}")
+                continue
+            
+            # Extract postcode from address for targeted search
+            postcode = extract_postcode(address.get('address', ''))
+            
+            lead = Lead(
+                campaign_id=campaign.id,
+                company_name=address['name'],
+                website=None,  # Don't put address in website field - it's not a URL
+                address=address.get('address', ''),
+                postcode=postcode,
+                business_sector='technology',  # Default as string
+                company_size="Medium",  # Default
+                contact_name='',
+                contact_email='',
+                contact_phone=address.get('phone', ''),
+                status=LeadStatus.NEW,
+                lead_score=50,  # Default score
+                potential_project_value=0,
+                timeline_estimate="Unknown",
+                created_by=current_user.id,
+                notes=f"Selected address from {source_company} - {address.get('type', 'unknown')} type"
+            )
+            db.session.add(lead)
+            print(f"[ADDRESS CAMPAIGN] Created lead for selected address: {address['name']}")
+        
+        # Set campaign status to running and start background process
+        campaign.status = LeadGenerationStatus.RUNNING
+        campaign.started_at = now
+        db.session.commit()
+        
+        # Start background campaign
+        def run_address_campaign():
+            from app import app
+            with app.app_context():
+                try:
+                    from utils.lead_generation_service import LeadGenerationService
+                    service = LeadGenerationService()
+                    
+                    # Use location-based search for each address
+                    for address in addresses:
+                        print(f"[ADDRESS CAMPAIGN] Processing location: {address['name']}")
+                        
+                        # Extract postcode for targeted search
+                        postcode = extract_postcode(address['address'])
+                        if postcode:
+                            # Update campaign postcode for this search
+                            campaign.postcode = postcode
+                            campaign.distance_miles = 25  # Smaller radius for address-based search
+                            db.session.commit()
+                            
+                            # Generate leads for this specific location
+                            service.generate_leads(campaign.id)
+                        else:
+                            print(f"[ADDRESS CAMPAIGN] No postcode found for {address['name']}")
+                    
+                    # Mark campaign as completed
+                    campaign.status = LeadGenerationStatus.COMPLETED
+                    campaign.completed_at = datetime.utcnow()
+                    db.session.commit()
+                    
+                    print(f"[ADDRESS CAMPAIGN] Campaign {campaign.id} completed successfully")
+                    
+                except Exception as e:
+                    print(f"[ADDRESS CAMPAIGN] Error in campaign {campaign.id}: {str(e)}")
+                    campaign.status = LeadGenerationStatus.FAILED
+                    campaign.completed_at = datetime.utcnow()
+                    db.session.commit()
+        
+        # Start background thread
+        import threading
+        thread = threading.Thread(target=run_address_campaign, daemon=True)
+        thread.start()
+        
+        print(f"[ADDRESS CAMPAIGN] Created campaign {campaign.id}: {campaign_name}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Address-based campaign created successfully',
+            'campaign_id': campaign.id,
+            'campaign_name': campaign_name
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ADDRESS CAMPAIGN] Error creating campaign: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @lead_generation_bp.route('/campaigns')
 @login_required
@@ -450,6 +608,54 @@ def run_campaign(campaign_id):
             flash(error_msg, 'danger')
             return redirect(url_for('lead_generation.view_campaign', campaign_id=campaign_id))
 
+@lead_generation_bp.route('/campaigns/<int:campaign_id>/stop', methods=['POST'])
+@login_required
+def stop_campaign(campaign_id):
+    """Stop a running campaign"""
+    campaign = LeadGenerationCampaign.query.get_or_404(campaign_id)
+    
+    if campaign.status != LeadGenerationStatus.RUNNING:
+        if request.is_json:
+            return jsonify({
+                'success': False,
+                'error': 'Campaign is not currently running'
+            }), 400
+        else:
+            flash('Campaign is not currently running.', 'warning')
+            return redirect(url_for('lead_generation.view_campaign', campaign_id=campaign_id))
+    
+    try:
+        # Update campaign status to cancelled
+        campaign.status = LeadGenerationStatus.CANCELLED
+        campaign.completed_at = datetime.utcnow()
+        db.session.commit()
+        
+        message = f'Campaign "{campaign.name}" has been stopped.'
+        
+        if request.is_json:
+            return jsonify({
+                'success': True,
+                'message': message,
+                'campaign_id': campaign_id
+            })
+        else:
+            flash(message, 'success')
+            return redirect(url_for('lead_generation.view_campaign', campaign_id=campaign_id))
+            
+    except Exception as e:
+        db.session.rollback()
+        
+        error_msg = f'Failed to stop campaign: {str(e)}'
+        
+        if request.is_json:
+            return jsonify({
+                'success': False,
+                'error': error_msg
+            }), 500
+        else:
+            flash(error_msg, 'danger')
+            return redirect(url_for('lead_generation.view_campaign', campaign_id=campaign_id))
+
 @lead_generation_bp.route('/leads/<int:lead_id>/convert')
 @login_required
 def convert_lead_to_customer(lead_id):
@@ -460,12 +666,23 @@ def convert_lead_to_customer(lead_id):
         # Create new customer from lead data
         from models_crm import Customer, CustomerStatus, Contact
         
+        # Validate website URL - only set if it looks like a URL, not an address
+        website_url = None
+        if lead.website and lead.website.strip():
+            # Check if it looks like a URL (starts with http/https) or is clearly an address
+            website = lead.website.strip()
+            if website.startswith(('http://', 'https://', 'www.')):
+                website_url = website
+            elif not any(word in website.lower() for word in ['street', 'road', 'avenue', 'lane', 'close', 'drive', 'place', 'uk', 'postcode', 'postal']):
+                # If it doesn't contain address keywords, treat as potential URL
+                website_url = website
+        
         customer = Customer(
             company_name=lead.company_name,
             status=CustomerStatus.LEAD,  # Start as lead so AI analysis can be run
             business_sector=map_business_sector_to_enum(lead.business_sector),
             business_size_category=lead.company_size,  # Map company_size to business_size_category
-            website=lead.website,
+            website=website_url,  # Use validated website URL
             company_registration=lead.company_registration,
             registration_confirmed=lead.registration_confirmed,
             billing_address=lead.address,
@@ -649,7 +866,7 @@ def view_lead(lead_id):
         customer = Customer.query.get(lead.converted_to_customer_id)
         if customer:
             flash(f'This lead has already been converted to a customer.', 'info')
-            return redirect(url_for('crm.customer_detail', customer_id=customer.id))
+            return redirect(url_for('crm.view_customer', customer_id=customer.id))
     
     # Also check by company name as a fallback
     from models_crm import Customer
@@ -658,7 +875,7 @@ def view_lead(lead_id):
     if existing_customer:
         # Lead has already been converted, redirect to customer detail page
         flash(f'This lead has already been converted to a customer.', 'info')
-        return redirect(url_for('crm.customer_detail', customer_id=existing_customer.id))
+        return redirect(url_for('crm.view_customer', customer_id=existing_customer.id))
     
     # Get lead interactions
     from models_lead_generation import LeadInteraction
@@ -705,48 +922,102 @@ def collect_competitor_data(campaign_id: int, competitor_names: list, source_com
                     print(f"[COMPETITOR] Lead not found for {company_name}")
                     continue
                 
-                # Search for company information using web search
-                company_info = search_company_information(company_name)
+                # Get comprehensive external data (same as normal campaigns)
+                print(f"[COMPETITOR] Getting comprehensive data for {company_name}")
+                external_data = external_service.get_comprehensive_company_data(company_name)
                 
-                if company_info:
-                    # Update lead with collected information
-                    lead.website = company_info.get('website')
-                    lead.contact_name = company_info.get('contact_name')
-                    lead.contact_email = company_info.get('contact_email')
-                    lead.contact_phone = company_info.get('contact_phone')
-                    lead.address = company_info.get('address')
-                    lead.postcode = company_info.get('postcode')
-                    lead.business_sector = company_info.get('business_sector')
-                    lead.company_size = company_info.get('company_size')
-                    lead.qualification_reason = f"Competitor of {source_company}. {company_info.get('description', 'IT services company')}"
-                    lead.potential_project_value = company_info.get('estimated_revenue')
+                if external_data:
+                    import json
+                    
+                    # Store all external data
+                    lead.companies_house_data = json.dumps(external_data.get('companies_house', {}))
+                    lead.linkedin_data = json.dumps(external_data.get('linkedin', {}))
+                    lead.website_data = json.dumps(external_data.get('website', {}))
+                    if external_data.get('google_maps'):
+                        lead.google_maps_data = json.dumps(external_data['google_maps'])
+                    
+                    # Update lead with the best available data
+                    web_data = external_data.get('website', {})
+                    ch_data = external_data.get('companies_house', {})
+                    
+                    # Website
+                    if web_data.get('website') and not lead.website:
+                        lead.website = web_data['website']
+                    
+                    # Contact information
+                    if web_data.get('contact_name') and not lead.contact_name:
+                        lead.contact_name = web_data['contact_name']
+                    if web_data.get('contact_email') and not lead.contact_email:
+                        lead.contact_email = web_data['contact_email']
+                    if web_data.get('contact_phone') and not lead.contact_phone:
+                        lead.contact_phone = web_data['contact_phone']
+                    
+                    # Address information
+                    if ch_data.get('address') and not lead.address:
+                        lead.address = ch_data['address']
+                    elif web_data.get('address') and not lead.address:
+                        lead.address = web_data['address']
+                    
+                    if ch_data.get('postcode') and not lead.postcode:
+                        lead.postcode = ch_data['postcode']
+                    elif web_data.get('postcode') and not lead.postcode:
+                        lead.postcode = web_data['postcode']
+                    
+                    # Business information
+                    if ch_data.get('business_sector') and not lead.business_sector:
+                        lead.business_sector = ch_data['business_sector']
+                    elif web_data.get('business_sector') and not lead.business_sector:
+                        lead.business_sector = web_data['business_sector']
+                    
+                    if ch_data.get('company_registration') and not lead.company_registration:
+                        lead.company_registration = ch_data['company_registration']
+                        lead.registration_confirmed = True
+                    
+                    # LinkedIn
+                    if external_data.get('linkedin', {}).get('linkedin_url') and not lead.linkedin_url:
+                        lead.linkedin_url = external_data['linkedin']['linkedin_url']
+                    
+                    print(f"[COMPETITOR] Updated {company_name} with external data")
+                else:
+                    print(f"[COMPETITOR] No external data found for {company_name}")
+                
+                # Run comprehensive AI analysis (same as normal campaigns)
+                print(f"[COMPETITOR] Running AI analysis for {company_name}")
+                ai_analysis = intelligence_service.analyze_company(
+                    company_name=company_name,
+                    website=lead.website,
+                    external_data=external_data or {}
+                )
+                
+                if ai_analysis and ai_analysis.get('success'):
+                    analysis_data = ai_analysis.get('data', {})
+                    lead.ai_analysis = json.dumps(analysis_data)
+                    
+                    # Update lead with AI analysis results
+                    if analysis_data.get('business_sector') and not lead.business_sector:
+                        lead.business_sector = analysis_data['business_sector']
+                    if analysis_data.get('company_size') and not lead.company_size:
+                        lead.company_size = analysis_data['company_size']
+                    if analysis_data.get('lead_score'):
+                        lead.lead_score = analysis_data['lead_score']
+                    
+                    # Set qualification reason and other fields
+                    lead.qualification_reason = f"Competitor of {source_company}. {analysis_data.get('business_description', 'IT services company')}"
+                    lead.timeline_estimate = "Ongoing monitoring"
+                    if not lead.lead_score:
+                        lead.lead_score = 75  # High score for competitors
+                    
+                    print(f"[COMPETITOR] AI analysis completed for {company_name}")
+                else:
+                    print(f"[COMPETITOR] AI analysis failed for {company_name}")
+                    # Set basic fields if AI analysis fails
+                    lead.qualification_reason = f"Competitor of {source_company}. IT services company"
                     lead.timeline_estimate = "Ongoing monitoring"
                     lead.lead_score = 75  # High score for competitors
-                    
-                    # Try to get Companies House data if we have a registration number
-                    if company_info.get('company_registration'):
-                        ch_data = external_service.get_companies_house_data(
-                            company_name, 
-                            company_info['company_registration']
-                        )
-                        if ch_data and ch_data.get('success'):
-                            lead.companies_house_data = ch_data['data']
-                            lead.company_registration = company_info['company_registration']
-                            lead.registration_confirmed = True
-                    
-                    # Store LinkedIn data if found
-                    if company_info.get('linkedin_url'):
-                        lead.linkedin_url = company_info['linkedin_url']
-                        # Could add LinkedIn data scraping here if needed
-                    
-                    # Store website data if found
-                    if company_info.get('website_data'):
-                        lead.website_data = company_info['website_data']
-                    
-                    db.session.commit()
-                    print(f"[COMPETITOR] Successfully updated {company_name}")
-                else:
-                    print(f"[COMPETITOR] No information found for {company_name}")
+                
+                # Commit after each company to avoid losing progress
+                db.session.commit()
+                print(f"[COMPETITOR] Successfully processed {company_name}")
                 
             except Exception as e:
                 print(f"[COMPETITOR] Error processing {company_name}: {e}")
@@ -846,18 +1117,50 @@ def create_competitors_campaign():
         # Parse competitor companies from the text
         import re
         
-        # Extract company names (common patterns)
+        def is_valid_company_name(name):
+            """Validate that a name is likely a real company, not a location or generic term"""
+            name_lower = name.lower().strip()
+            
+            # Exclude common non-company terms
+            invalid_terms = [
+                'derby', 'sheffield', 'nottingham', 'leicester', 'birmingham', 'manchester',
+                'liverpool', 'leeds', 'bristol', 'newcastle', 'north', 'south', 'east', 'west',
+                'regional', 'national', 'local', 'area', 'region', 'county', 'city', 'town',
+                'high', 'low', 'central', 'north west', 'south east', 'south west', 'midlands',
+                'england', 'scotland', 'wales', 'northern ireland', 'uk', 'britain'
+            ]
+            
+            # Must not be in invalid terms
+            if name_lower in invalid_terms:
+                return False
+            
+            # Must be at least 3 characters
+            if len(name) < 3:
+                return False
+            
+            # Must contain at least one letter
+            if not re.search(r'[a-zA-Z]', name):
+                return False
+            
+            # Should not be just numbers or single words without company indicators
+            words = name.split()
+            if len(words) == 1 and not any(suffix in name_lower for suffix in ['ltd', 'limited', 'plc', 'inc', 'corp', 'llc', 'llp']):
+                return False
+            
+            return True
+        
+        # Extract company names (improved patterns)
         company_patterns = [
-            r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Ltd|Limited|PLC|plc|Inc|Corp|LLC)\b',
+            r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Ltd|Limited|PLC|plc|Inc|Corp|LLC|LLP|Group|Holdings|Solutions|Services|Systems)\b',
             r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:IT|Computing|Technology|Systems|Solutions|Group|Services)\b',
-            r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b'  # Fallback for any capitalized words
+            r'\b(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Digital|Managed|Cloud|Data|Network|Software|Hardware|Support|Consulting))\b'
         ]
         
         # Known competitor companies from the example
         known_competitors = [
             'Air IT', 'BCN Group', 'Littlefish', 'Razorblue', 'SysGroup', 
             'Node4', 'Redcentric', 'Digital Space', 'Timico', 'ANS Group', 
-            'Claranet', 'Phoenix', 'fluidone', 'M247'
+            'Claranet', 'Phoenix', 'fluidone', 'M247', 'Mirus IT', 'Highlander Computing Solutions'
         ]
         
         competitors = set()
@@ -867,13 +1170,12 @@ def create_competitors_campaign():
             if competitor.lower() in competitor_text.lower():
                 competitors.add(competitor)
         
-        # Then extract using patterns
+        # Then extract using patterns with validation
         for pattern in company_patterns:
             matches = re.findall(pattern, competitor_text)
             for match in matches:
-                # Clean up the match
                 company_name = match.strip()
-                if len(company_name) > 3 and company_name not in competitors:
+                if is_valid_company_name(company_name) and company_name not in competitors:
                     competitors.add(company_name)
         
         if not competitors:
@@ -888,12 +1190,13 @@ def create_competitors_campaign():
         campaign = LeadGenerationCampaign(
             name=campaign_name,
             description=f"Competitive intelligence campaign for {source_company}. Automatically generated from AI competitor analysis.",
-            prompt_type='competitor_analysis',
+            prompt_type='competitor_verification',
             postcode="LE1 1AA",  # Default Leicester postcode
             distance_miles=100,  # Wide search area for competitors
             max_results=len(competitors) * 2,  # Allow some buffer
             created_by=current_user.id,
-            status=LeadGenerationStatus.DRAFT
+            status=LeadGenerationStatus.DRAFT,
+            custom_search_criteria=f"COMPETITORS TO VERIFY: {', '.join(sorted(competitors))}"
         )
         
         db.session.add(campaign)
@@ -902,13 +1205,35 @@ def create_competitors_campaign():
         # Create leads for each competitor
         created_leads = []
         for company_name in competitors:
+            # Check if lead already exists within this campaign first
+            existing_lead_in_campaign = Lead.query.filter_by(
+                campaign_id=campaign.id,
+                company_name=company_name
+            ).first()
+            
+            if existing_lead_in_campaign:
+                print(f"[COMPETITOR DEDUP] Skipping duplicate in same campaign: {company_name}")
+                continue
+            
             # Check if lead already exists across all campaigns (deduplication)
-            existing_lead = Lead.query.filter_by(
+            existing_lead_anywhere = Lead.query.filter_by(
                 company_name=company_name,
                 created_by=current_user.id
             ).first()
             
-            if not existing_lead:
+            # Also check if company already exists as a customer in CRM
+            from models_crm import Customer
+            existing_customer = Customer.query.filter_by(company_name=company_name).first()
+            
+            if existing_lead_anywhere:
+                print(f"[COMPETITOR DEDUP] Skipping - already exists as lead: {company_name}")
+                continue
+                
+            if existing_customer:
+                print(f"[COMPETITOR DEDUP] Skipping - already exists as customer: {company_name}")
+                continue
+            
+            if not existing_lead_anywhere and not existing_customer:
                 # Create new lead for competitor
                 lead = Lead(
                     campaign_id=campaign.id,

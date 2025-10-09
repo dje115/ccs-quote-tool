@@ -269,7 +269,7 @@
                     <ul class="pagination pagination-sm justify-content-center mb-0">
                         {% if leads.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('lead_generation.view_all_leads', page=leads.prev_num, **request.args) }}">Previous</a>
+                            <a class="page-link" href="{{ url_for('lead_generation.view_all_leads', page=leads.prev_num, **request.args|dict_filter('page')) }}">Previous</a>
                         </li>
                         {% endif %}
                         
@@ -277,7 +277,7 @@
                             {% if page_num %}
                                 {% if page_num != leads.page %}
                                 <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('lead_generation.view_all_leads', page=page_num, **request.args) }}">{{ page_num }}</a>
+                                    <a class="page-link" href="{{ url_for('lead_generation.view_all_leads', page=page_num, **request.args|dict_filter('page')) }}">{{ page_num }}</a>
                                 </li>
                                 {% else %}
                                 <li class="page-item active">
@@ -293,7 +293,7 @@
                         
                         {% if leads.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('lead_generation.view_all_leads', page=leads.next_num, **request.args) }}">Next</a>
+                            <a class="page-link" href="{{ url_for('lead_generation.view_all_leads', page=leads.next_num, **request.args|dict_filter('page')) }}">Next</a>
                         </li>
                         {% endif %}
                     </ul>

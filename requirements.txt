@@ -1,13 +1,79 @@
-Flask>=2.3.0
-Flask-Login>=0.6.0
-Flask-SQLAlchemy>=3.0.0
-openai>=1.0.0
-requests>=2.28.0
-python-dotenv>=1.0.0
-Werkzeug>=2.3.0
-Jinja2>=3.1.0
-MarkupSafe>=2.1.0
-SQLAlchemy>=2.0.0
-itsdangerous>=2.1.0
-click>=8.1.0
-blinker>=1.6.0
+# CCS Quote Tool - Version 1.2
+# Python Dependencies
+
+# Core Web Framework
+Flask==3.0.0
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-WTF==1.2.1
+
+# Database
+SQLAlchemy==2.0.23
+
+# HTTP Requests & API Integration
+requests==2.31.0
+httpx==0.25.2
+
+# AI & OpenAI Integration
+openai==1.3.8
+
+# Data Processing
+beautifulsoup4==4.12.2
+lxml==4.9.3
+
+# Date/Time Handling
+python-dateutil==2.8.2
+
+# Security & Encryption
+Werkzeug==3.0.1
+cryptography==41.0.8
+
+# Development & Testing
+pytest==7.4.3
+pytest-flask==1.3.0
+
+# Environment Management
+python-dotenv==1.0.0
+
+# JSON & Data Handling
+jsonschema==4.20.0
+
+# Email (for future features)
+Flask-Mail==0.9.1
+
+# File Processing
+python-magic==0.4.27
+
+# Excel/CSV Export (for future features)
+openpyxl==3.1.2
+pandas==2.1.4
+
+# Background Tasks (for future features)
+celery==5.3.4
+redis==5.0.1
+
+# PDF Generation (for future features)
+reportlab==4.0.7
+
+# Image Processing (for future features)
+Pillow==10.1.0
+
+# API Documentation (for future features)
+flask-restx==1.3.0
+
+# Monitoring & Logging (for future features)
+sentry-sdk[flask]==1.38.0
+
+# Production Server (for deployment)
+gunicorn==21.2.0
+
+# Development Tools
+black==23.11.0
+flake8==6.1.0
+isort==5.12.0
+
+# Additional Utilities
+click==8.1.7
+itsdangerous==2.1.2
+Jinja2==3.1.2
+MarkupSafe==2.1.3

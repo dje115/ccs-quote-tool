@@ -73,6 +73,12 @@
                                                onclick="return confirm('Run this campaign? This will generate leads using AI.')">
                                                 <i class="fas fa-play"></i> Run
                                             </a>
+                                        {% elif campaign.status.value == 'running' %}
+                                            <a href="#" 
+                                               class="btn btn-sm btn-danger" 
+                                               onclick="stopCampaign({{ campaign.id }}); return false;">
+                                                <i class="fas fa-stop"></i> Stop
+                                            </a>
                                         {% endif %}
                                     </div>
                                 </td>
@@ -95,5 +101,75 @@
         </div>
     </div>
 </div>
+
+<script>
+function stopCampaign(campaignId) {
+    if (!confirm('Are you sure you want to stop this campaign? This action cannot be undone.')) {
+        return;
+    }
+    
+    // Show loading state
+    const stopButton = event.target.closest('a');
+    const originalHTML = stopButton.innerHTML;
+    stopButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+    stopButton.classList.add('disabled');
+    
+    // Send stop request
+    fetch(`/lead-generation/campaigns/${campaignId}/stop`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i> ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+            
+            // Reload page to show updated status
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            // Show error message
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i> ${data.error || 'Failed to stop campaign'}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+            
+            // Re-enable button
+            stopButton.innerHTML = originalHTML;
+            stopButton.classList.remove('disabled');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        
+        // Show error message
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i> Failed to stop campaign. Please try again.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.container').firstChild);
+        
+        // Re-enable button
+        stopButton.innerHTML = originalHTML;
+        stopButton.classList.remove('disabled');
+    });
+}
+</script>
+
 {% endblock %}
 

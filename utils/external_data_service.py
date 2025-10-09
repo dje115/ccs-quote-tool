@@ -42,33 +42,40 @@ class ExternalDataService:
             root = ET.fromstring(content)
             
             # Define namespace mappings for iXBRL
+            # Try to detect which ix namespace is used (2008 or 2013)
+            ix_namespace = 'http://www.xbrl.org/2008/inlineXBRL'  # Most common in UK accounts
+            if 'http://www.xbrl.org/2013/inlineXBRL' in content:
+                ix_namespace = 'http://www.xbrl.org/2013/inlineXBRL'
+            
             namespaces = {
-                'ix': 'http://www.xbrl.org/2013/inlineXBRL',
+                'ix': ix_namespace,
                 'xbrli': 'http://www.xbrl.org/2003/instance',
-                'e': 'http://xbrl.frc.org.uk/fr/2023-01-01/core',  # Correct namespace for this document
                 'core': 'http://xbrl.frc.org.uk/fr/2023-01-01/core',
-                'bus': 'http://xbrl.frc.org.uk/general/2023-01-01/common'
+                'e': 'http://xbrl.frc.org.uk/fr/2023-01-01/core',  # Alternative namespace prefix
+                'bus': 'http://xbrl.frc.org.uk/cd/2023-01-01/business',
+                'b': 'http://xbrl.frc.org.uk/FRS-102/2023-01-01',
+                'd': 'http://xbrl.frc.org.uk/cd/2023-01-01/business'
             }
             
             # Extract financial data using XBRL tags
             # Try multiple namespace prefixes and tag variations
             tag_variations = [
                 # Net Assets / Shareholders' Funds
-                ('net_assets', ['e:NetAssetsLiabilities', 'core:NetAssetsLiabilities', 'e:NetAssets', 'core:NetAssets']),
+                ('net_assets', ['e:NetAssetsLiabilities', 'core:NetAssetsLiabilities', 'e:NetAssets', 'core:NetAssets', 'e:Equity', 'core:Equity']),
                 # Cash at Bank
-                ('cash_at_bank', ['e:CashBankOnHand', 'core:CashBankOnHand', 'e:CashAtBank', 'core:CashAtBank']),
+                ('cash_at_bank', ['e:CashBankOnHand', 'core:CashBankOnHand', 'e:CashAtBank', 'core:CashAtBank', 'e:CashBankInHand', 'core:CashBankInHand']),
                 # Total Equity
-                ('total_equity', ['e:Equity', 'core:Equity', 'e:TotalEquity', 'core:TotalEquity']),
+                ('total_equity', ['e:Equity', 'core:Equity', 'e:TotalEquity', 'core:TotalEquity', 'e:ShareholderFunds', 'core:ShareholderFunds']),
                 # Property, Plant & Equipment
-                ('ppe', ['e:PropertyPlantEquipment', 'core:PropertyPlantEquipment', 'e:PPE', 'core:PPE']),
+                ('ppe', ['e:PropertyPlantEquipment', 'core:PropertyPlantEquipment', 'e:PPE', 'core:PPE', 'e:TangibleFixedAssets', 'core:TangibleFixedAssets']),
                 # Trade Debtors
-                ('trade_debtors', ['e:TradeDebtorsTradeReceivables', 'core:TradeDebtorsTradeReceivables', 'e:TradeDebtors', 'core:TradeDebtors']),
+                ('trade_debtors', ['e:TradeDebtorsTradeReceivables', 'core:TradeDebtorsTradeReceivables', 'e:TradeDebtors', 'core:TradeDebtors', 'e:Debtors', 'core:Debtors']),
                 # Turnover/Revenue
-                ('turnover', ['e:TurnoverRevenue', 'core:TurnoverRevenue', 'e:Revenue', 'core:Revenue']),
+                ('turnover', ['e:TurnoverRevenue', 'core:TurnoverRevenue', 'e:Revenue', 'core:Revenue', 'e:Turnover', 'core:Turnover']),
                 # Profit Before Tax
-                ('profit_before_tax', ['e:ProfitLossOnOrdinaryActivitiesBeforeTax', 'core:ProfitLossOnOrdinaryActivitiesBeforeTax', 'e:ProfitBeforeTax', 'core:ProfitBeforeTax']),
+                ('profit_before_tax', ['e:ProfitLossOnOrdinaryActivitiesBeforeTax', 'core:ProfitLossOnOrdinaryActivitiesBeforeTax', 'e:ProfitBeforeTax', 'core:ProfitBeforeTax', 'e:ProfitLossBeforeTax', 'core:ProfitLossBeforeTax']),
                 # Operating Profit
-                ('operating_profit', ['e:OperatingProfitLoss', 'core:OperatingProfitLoss', 'e:OperatingProfit', 'core:OperatingProfit']),
+                ('operating_profit', ['e:OperatingProfitLoss', 'core:OperatingProfitLoss', 'e:OperatingProfit', 'core:OperatingProfit', 'e:ProfitLossFromOperations', 'core:ProfitLossFromOperations']),
                 # Gross Profit
                 ('gross_profit', ['e:GrossProfitLoss', 'core:GrossProfitLoss', 'e:GrossProfit', 'core:GrossProfit']),
                 # Cost of Sales
@@ -96,7 +103,11 @@ class ExternalDataService:
                 'e:AverageNumberEmployeesDuringPeriod',
                 'core:AverageNumberEmployeesDuringPeriod',
                 'e:NumberOfEmployees',
-                'core:NumberOfEmployees'
+                'core:NumberOfEmployees',
+                'e:Employees',
+                'core:Employees',
+                'bus:AverageNumberEmployees',
+                'd:AverageNumberEmployees'
             ]
             
             for tag in employee_tag_variations:
@@ -112,29 +123,32 @@ class ExternalDataService:
                     if 'employees' in financial_data:
                         break
             
-            # Extract financial year periods
-            # Look for period start and end dates
-            period_tag_variations = [
-                ('period_start', ['e:PeriodStartDate', 'core:PeriodStartDate', 'e:StartDate', 'core:StartDate']),
-                ('period_end', ['e:PeriodEndDate', 'core:PeriodEndDate', 'e:EndDate', 'core:EndDate']),
-                ('reporting_date', ['e:ReportingDate', 'core:ReportingDate', 'e:BalanceSheetDate', 'core:BalanceSheetDate'])
-            ]
-            
-            for field_name, tag_list in period_tag_variations:
-                for tag in tag_list:
-                    elements = root.findall(f'.//ix:nonFraction[@name="{tag}"]', namespaces)
-                    if elements:
-                        for elem in elements[:1]:
-                            try:
-                                # Try to parse date
-                                date_text = elem.text.strip()
-                                if date_text and len(date_text) >= 4:
-                                    financial_data[field_name] = date_text
-                                    break
-                            except:
-                                continue
-                        if field_name in financial_data:
-                            break
+            # Extract financial year periods from context elements
+            # Period dates are stored in xbrli:context elements
+            try:
+                contexts = root.findall('.//xbrli:context', namespaces)
+                for context in contexts:
+                    context_id = context.get('id', '')
+                    # Look for contexts that represent the current period
+                    if 'current' in context_id.lower() or 'period' in context_id.lower():
+                        period = context.find('.//xbrli:period', namespaces)
+                        if period is not None:
+                            start_date = period.find('.//xbrli:startDate', namespaces)
+                            end_date = period.find('.//xbrli:endDate', namespaces)
+                            instant = period.find('.//xbrli:instant', namespaces)
+                            
+                            if start_date is not None and start_date.text:
+                                financial_data['period_start'] = start_date.text.strip()
+                            if end_date is not None and end_date.text:
+                                financial_data['period_end'] = end_date.text.strip()
+                            if instant is not None and instant.text:
+                                financial_data['reporting_date'] = instant.text.strip()
+                            
+                            # If we found period_end, that's our most important date
+                            if 'period_end' in financial_data:
+                                break
+            except:
+                pass
             
             # Try alternative parsing if XBRL tags don't work
             if not financial_data:
@@ -702,28 +716,52 @@ class ExternalDataService:
                     
                     # Fix year display - calculate financial year from filing date
                     for year_data in financial_history:
-                        filing_date = year_data.get('filing_date')
-                        if filing_date:
+                        # Calculate financial year from period_end if available, otherwise from filing date
+                        financial_year = None
+                        
+                        # First, try to get the period_end from the iXBRL document
+                        if year_data.get('period_end'):
                             try:
                                 from datetime import datetime
-                                filing_dt = datetime.strptime(filing_date, '%Y-%m-%d')
-                                filing_year = filing_dt.year
-                                filing_month = filing_dt.month
-                                
-                                # UK companies typically file accounts 9 months after financial year end
-                                # Most companies have Dec 31 year-end, so:
-                                # - Filed Sep 2025 = 2024 financial year (filed 9 months after Dec 2024)
-                                # - Filed Jul 2024 = 2023 financial year (filed 7 months after Dec 2023)
-                                # - Filed Jun 2021 = 2020 financial year (filed 6 months after Dec 2020)
-                                
-                                # For this company, all filings appear to be previous year's accounts
-                                financial_year = filing_year - 1
-                                
-                                # Set the financial year end date
-                                year_data['financial_year_end'] = f"{financial_year}-12-31"
-                                year_data['financial_year'] = str(financial_year)
+                                period_end = year_data['period_end']
+                                # Handle various date formats
+                                for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y']:
+                                    try:
+                                        period_dt = datetime.strptime(period_end, fmt)
+                                        financial_year = period_dt.year
+                                        year_data['financial_year_end'] = period_end
+                                        break
+                                    except:
+                                        continue
                             except:
                                 pass
+                        
+                        # Fallback: Calculate from filing date
+                        if not financial_year:
+                            filing_date = year_data.get('filing_date')
+                            if filing_date:
+                                try:
+                                    from datetime import datetime
+                                    filing_dt = datetime.strptime(filing_date, '%Y-%m-%d')
+                                    filing_year = filing_dt.year
+                                    filing_month = filing_dt.month
+                                    
+                                    # UK companies typically file accounts 9 months after financial year end
+                                    # Most companies have Dec 31 year-end, so:
+                                    # - Filed Sep 2025 = 2024 financial year (filed 9 months after Dec 2024)
+                                    # - Filed Jul 2024 = 2023 financial year (filed 7 months after Dec 2023)
+                                    # - Filed Jun 2021 = 2020 financial year (filed 6 months after Dec 2020)
+                                    
+                                    # For this company, all filings appear to be previous year's accounts
+                                    financial_year = filing_year - 1
+                                    
+                                    # Set the financial year end date
+                                    year_data['financial_year_end'] = f"{financial_year}-12-31"
+                                except:
+                                    pass
+                        
+                        if financial_year:
+                            year_data['financial_year'] = str(financial_year)
                     
                     # Calculate trends and growth
                     if len(financial_history) >= 2:
@@ -1218,6 +1256,73 @@ class ExternalDataService:
         
         return locations[:10], addresses[:10], additional_sites[:10]
     
+    def _is_company_name_match(self, company_name: str, location_name: str) -> bool:
+        """
+        Check if a location name is a good match for the company name
+        """
+        if not company_name or not location_name:
+            return False
+        
+        # Convert both to lowercase for case-insensitive comparison
+        company_lower = company_name.lower().strip()
+        location_lower = location_name.lower().strip()
+        
+        # Exact match
+        if company_lower == location_lower:
+            return True
+        
+        # Check if location name contains the full company name
+        if company_lower in location_lower:
+            return True
+        
+        # Check if company name contains the location name (for partial matches)
+        if location_lower in company_lower:
+            return True
+        
+        # Remove common suffixes and check again
+        suffixes = [' ltd', ' limited', ' plc', ' llc', ' inc', ' corp', ' company', ' co']
+        clean_company = company_lower
+        clean_location = location_lower
+        
+        for suffix in suffixes:
+            clean_company = clean_company.replace(suffix, '').strip()
+            clean_location = clean_location.replace(suffix, '').strip()
+        
+        # Check cleaned names
+        if clean_company == clean_location:
+            return True
+        if clean_company in clean_location:
+            return True
+        if clean_location in clean_company:
+            return True
+        
+        return False
+    
+    def _has_significant_word_match(self, company_name: str, location_name: str) -> bool:
+        """
+        Check if location has significant word overlap with company name
+        """
+        if not company_name or not location_name:
+            return False
+        
+        # Convert to lowercase for case-insensitive comparison
+        company_lower = company_name.lower().strip()
+        location_lower = location_name.lower().strip()
+        
+        # Split into words and remove common words
+        common_words = {'the', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'ltd', 'limited', 'plc', 'llc', 'inc', 'corp', 'company', 'co'}
+        
+        company_words = set(word.strip() for word in company_lower.split() if word.strip().lower() not in common_words and len(word.strip()) > 2)
+        location_words = set(word.strip() for word in location_lower.split() if word.strip().lower() not in common_words and len(word.strip()) > 2)
+        
+        # Must have at least 50% word overlap for significant words
+        if company_words and location_words:
+            overlap = company_words.intersection(location_words)
+            overlap_ratio = len(overlap) / max(len(company_words), len(location_words))
+            return overlap_ratio >= 0.5
+        
+        return False
+    
     def get_google_maps_data(self, company_name: str, website: str = None) -> Dict[str, Any]:
         """
         Get company location data from Google Maps Places API v1
@@ -1243,20 +1348,88 @@ class ExternalDataService:
                 'additional_locations': []
             }
             
-            # Search for all locations using Google Places API v1
+            # Search for company locations using Google Places API v1
+            # Start with exact company name search
             search_queries = [company_name]
             
-            # Add variations for better coverage
-            variations = [
-                f"{company_name} office",
-                f"{company_name} branch", 
-                f"{company_name} location",
-                f"{company_name} uk",
-                f"{company_name} ltd"
+            # Add comprehensive search variations to find all locations
+            if ' ' in company_name:  # Only add variations for multi-word company names
+                variations = [
+                    f'"{company_name}"',  # Exact phrase search
+                    f"{company_name} UK",  # Add UK for better UK-specific results
+                    f"{company_name} office",  # Find office locations
+                    f"{company_name} branch",  # Find branch locations
+                    f"{company_name} location"  # Find location mentions
+                ]
+                search_queries.extend(variations)
+            
+            # Add UK region and county-based searches for comprehensive coverage
+            uk_searches = [
+                # England Regions (broad coverage)
+                f"{company_name} South East England",
+                f"{company_name} South West England", 
+                f"{company_name} London",
+                f"{company_name} East Midlands",
+                f"{company_name} West Midlands",
+                f"{company_name} Yorkshire",
+                f"{company_name} North West England",
+                f"{company_name} North East England",
+                f"{company_name} East of England",
+                # Scotland
+                f"{company_name} Scotland",
+                f"{company_name} Central Scotland",
+                f"{company_name} Highlands Scotland",
+                # Wales
+                f"{company_name} Wales",
+                f"{company_name} South Wales",
+                f"{company_name} North Wales",
+                # Northern Ireland
+                f"{company_name} Northern Ireland",
+                f"{company_name} Belfast",
+                # Major UK Counties (for specific towns like Wimborne)
+                f"{company_name} Dorset",           # Wimborne, Bournemouth, Poole
+                f"{company_name} Hampshire",        # Southampton, Portsmouth
+                f"{company_name} Kent",             # Canterbury, Maidstone
+                f"{company_name} Surrey",           # Guildford, Woking
+                f"{company_name} Sussex",           # Brighton, Hastings
+                f"{company_name} Berkshire",        # Reading, Windsor
+                f"{company_name} Oxfordshire",      # Oxford, Banbury
+                f"{company_name} Buckinghamshire",  # Milton Keynes, Aylesbury
+                f"{company_name} Essex",            # Chelmsford, Colchester
+                f"{company_name} Hertfordshire",    # St Albans, Watford
+                f"{company_name} Cambridgeshire",   # Cambridge, Peterborough
+                f"{company_name} Norfolk",          # Norwich, King's Lynn
+                f"{company_name} Suffolk",          # Ipswich, Bury St Edmunds
+                f"{company_name} Leicestershire",   # Leicester, Loughborough
+                f"{company_name} Derbyshire",       # Derby, Chesterfield
+                f"{company_name} Nottinghamshire",  # Nottingham, Mansfield
+                f"{company_name} Staffordshire",    # Stoke, Stafford
+                f"{company_name} Warwickshire",     # Coventry, Warwick
+                f"{company_name} Worcestershire",   # Worcester, Kidderminster
+                f"{company_name} West Yorkshire",   # Leeds, Bradford
+                f"{company_name} South Yorkshire",  # Sheffield, Rotherham
+                f"{company_name} North Yorkshire",  # York, Harrogate
+                f"{company_name} Lancashire",       # Preston, Blackpool
+                f"{company_name} Greater Manchester", # Manchester, Bolton
+                f"{company_name} Merseyside",       # Liverpool, Wirral
+                f"{company_name} Tyne and Wear",    # Newcastle, Sunderland
+                f"{company_name} Durham",           # Durham, Darlington
+                f"{company_name} Northumberland",   # Northumberland
+                # Scotland Counties
+                f"{company_name} Edinburgh",        # Edinburgh
+                f"{company_name} Glasgow",          # Glasgow
+                f"{company_name} Aberdeen",         # Aberdeen
+                f"{company_name} Dundee",           # Dundee
+                # Wales Counties
+                f"{company_name} Cardiff",          # Cardiff
+                f"{company_name} Swansea",          # Swansea
+                f"{company_name} Newport",          # Newport
             ]
-            search_queries.extend(variations)
+            search_queries.extend(uk_searches)
             
             all_locations = []
+            
+            print(f"[GOOGLE MAPS] Searching for '{company_name}' with {len(search_queries)} queries")
             
             for query in search_queries:
                 # Use Google Places API v1 Text Search
@@ -1278,19 +1451,59 @@ class ExternalDataService:
                     
                     if data.get('places'):
                         place_ids = [place['id'] for place in data['places']]
+                        print(f"[GOOGLE MAPS] Query '{query}' found {len(place_ids)} places")
                         
                         # Get detailed information for each place
                         for place_id in place_ids:
                             details = self._get_google_place_details_v1(place_id, google_api_key)
                             if details:
                                 all_locations.append(details)
+                    else:
+                        print(f"[GOOGLE MAPS] Query '{query}' found no places")
             
-            # De-duplicate locations by address
+            # Filter and de-duplicate locations
             unique_locations = {}
+            company_name_lower = company_name.lower().strip()
+            
+            print(f"[GOOGLE MAPS] Total locations found: {len(all_locations)}")
+            
             for location in all_locations:
+                location_name = location.get('name', '').lower().strip()
                 address_key = (location.get('address') or '').lower().strip()
-                if address_key and address_key not in unique_locations:
-                    unique_locations[address_key] = location
+                
+                print(f"[GOOGLE MAPS] Checking: '{location_name}' at '{address_key}'")
+                
+                # Only include locations that actually match the company name
+                if self._is_company_name_match(company_name_lower, location_name):
+                    if address_key and address_key not in unique_locations:
+                        unique_locations[address_key] = location
+                        print(f"[GOOGLE MAPS] ✓ MATCH: Added '{location_name}'")
+                    else:
+                        print(f"[GOOGLE MAPS] ✗ DUPLICATE: Skipped '{location_name}' (duplicate address)")
+                else:
+                    print(f"[GOOGLE MAPS] ✗ NO MATCH: Rejected '{location_name}'")
+            
+            print(f"[GOOGLE MAPS] Strict filtering result: {len(unique_locations)} locations")
+            
+            # If no matches found with strict filtering, try more lenient matching
+            if not unique_locations:
+                print(f"[GOOGLE MAPS] Trying lenient matching...")
+                for location in all_locations:
+                    location_name = location.get('name', '').lower().strip()
+                    address_key = (location.get('address') or '').lower().strip()
+                    
+                    # More lenient matching - check if any significant words match
+                    if self._has_significant_word_match(company_name_lower, location_name):
+                        if address_key and address_key not in unique_locations:
+                            unique_locations[address_key] = location
+                            print(f"[GOOGLE MAPS] ✓ LENIENT MATCH: Added '{location_name}'")
+                        else:
+                            print(f"[GOOGLE MAPS] ✗ LENIENT DUPLICATE: Skipped '{location_name}'")
+                    else:
+                        print(f"[GOOGLE MAPS] ✗ LENIENT NO MATCH: Rejected '{location_name}'")
+            
+            print(f"[GOOGLE MAPS] Final result: {len(unique_locations)} unique locations")
+            
             
             # Convert back to list and populate maps_data
             maps_data['locations'] = list(unique_locations.values())

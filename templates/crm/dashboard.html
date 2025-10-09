@@ -10,7 +10,10 @@
                 <h2><i class="fas fa-users text-primary"></i> Customer Relationship Management</h2>
                 <div>
                     <a href="{{ url_for('lead_generation.view_all_leads') }}" class="btn btn-outline-secondary me-2">
-                        <i class="fas fa-search"></i> View Leads
+                        <i class="fas fa-search"></i> All Leads
+                    </a>
+                    <a href="{{ url_for('lead_generation.view_all_leads') }}?status=converted" class="btn btn-outline-info me-2">
+                        <i class="fas fa-exchange-alt"></i> Converted Leads
                     </a>
                     <a href="{{ url_for('crm.list_customers') }}" class="btn btn-outline-primary me-2">
                         <i class="fas fa-list"></i> All Customers
@@ -176,9 +179,198 @@
             </div>
         </div>
     </div>
+
+    <!-- Dynamic Filters Bar -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-filter"></i> Quick Filters & Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Quote Management Filters -->
+                        <div class="col-md-3 mb-3">
+                            <div class="filter-section">
+                                <h6 class="text-primary mb-2"><i class="fas fa-file-invoice-dollar"></i> Quotes</h6>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="filterQuotes('draft')">
+                                        <i class="fas fa-edit"></i> Draft Quotes
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="filterQuotes('sent')">
+                                        <i class="fas fa-paper-plane"></i> Sent Quotes
+                                    </button>
+                                    <button class="btn btn-outline-success btn-sm" onclick="filterQuotes('accepted')">
+                                        <i class="fas fa-check-circle"></i> Accepted
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Follow-up & Contact Filters -->
+                        <div class="col-md-3 mb-3">
+                            <div class="filter-section">
+                                <h6 class="text-success mb-2"><i class="fas fa-calendar-check"></i> Follow-ups</h6>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-danger btn-sm" onclick="filterFollowUps('overdue')">
+                                        <i class="fas fa-exclamation-triangle"></i> Overdue
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="filterFollowUps('today')">
+                                        <i class="fas fa-clock"></i> Due Today
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm" onclick="filterFollowUps('week')">
+                                        <i class="fas fa-calendar-week"></i> This Week
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Customer Status Filters -->
+                        <div class="col-md-3 mb-3">
+                            <div class="filter-section">
+                                <h6 class="text-warning mb-2"><i class="fas fa-users"></i> Customer Status</h6>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="filterCustomers('lead')">
+                                        <i class="fas fa-user-plus"></i> New Leads
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm" onclick="filterCustomers('prospect')">
+                                        <i class="fas fa-eye"></i> Prospects
+                                    </button>
+                                    <button class="btn btn-outline-success btn-sm" onclick="filterCustomers('active')">
+                                        <i class="fas fa-user-check"></i> Active
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI & Analysis Filters -->
+                        <div class="col-md-3 mb-3">
+                            <div class="filter-section">
+                                <h6 class="text-info mb-2"><i class="fas fa-robot"></i> AI Analysis</h6>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="filterAI('pending')">
+                                        <i class="fas fa-clock"></i> Pending Analysis
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm" onclick="filterAI('needs_update')">
+                                        <i class="fas fa-sync-alt"></i> Needs Update
+                                    </button>
+                                    <button class="btn btn-outline-success btn-sm" onclick="runBatchAI()">
+                                        <i class="fas fa-magic"></i> Batch AI Run
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Additional Filters Row -->
+                    <div class="row mt-3">
+                        <div class="col-md-4 mb-3">
+                            <div class="filter-section">
+                                <h6 class="text-danger mb-2"><i class="fas fa-chart-line"></i> High Value</h6>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-danger btn-sm" onclick="filterHighValue('quotes')">
+                                        <i class="fas fa-pound-sign"></i> High Value Quotes
+                                    </button>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="filterHighValue('customers')">
+                                        <i class="fas fa-crown"></i> VIP Customers
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="filter-section">
+                                <h6 class="text-purple mb-2"><i class="fas fa-briefcase"></i> Business</h6>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="filterSector('technology')">
+                                        <i class="fas fa-laptop-code"></i> Technology
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="filterSector('healthcare')">
+                                        <i class="fas fa-heartbeat"></i> Healthcare
+                                    </button>
+                                    <button class="btn btn-outline-success btn-sm" onclick="filterSector('education')">
+                                        <i class="fas fa-graduation-cap"></i> Education
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <div class="filter-section">
+                                <h6 class="text-dark mb-2"><i class="fas fa-tools"></i> Actions</h6>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-primary btn-sm" onclick="exportData()">
+                                        <i class="fas fa-download"></i> Export Data
+                                    </button>
+                                    <button class="btn btn-outline-info btn-sm" onclick="generateReport()">
+                                        <i class="fas fa-chart-bar"></i> Generate Report
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="scheduleFollowUps()">
+                                        <i class="fas fa-calendar-plus"></i> Schedule
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.filter-section {
+    padding: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    height: 100%;
+}
+
+.filter-section h6 {
+    font-weight: 600;
+    border-bottom: 2px solid currentColor;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+}
+
+.filter-section .btn {
+    transition: all 0.3s ease;
+}
+
+.filter-section .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.text-purple {
+    color: #6f42c1 !important;
+}
+
+/* Animation for filter buttons */
+.filter-section .btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.filter-section .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.filter-section .btn:hover::before {
+    left: 100%;
+}
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     loadDashboardData();
@@ -323,5 +515,113 @@ document.getElementById('customerSearch').addEventListener('input', function() {
         document.getElementById('searchResults').innerHTML = '';
     }
 });
+
+// Filter Functions for the new filters bar
+function filterQuotes(status) {
+    window.location.href = `/quotes?status=${status}`;
+}
+
+function filterFollowUps(type) {
+    window.location.href = `/crm/customers?follow_up=${type}`;
+}
+
+function filterCustomers(status) {
+    window.location.href = `/crm/customers?status=${status}`;
+}
+
+function filterAI(type) {
+    if (type === 'pending') {
+        window.location.href = '/crm/customers?ai_analysis=pending';
+    } else if (type === 'needs_update') {
+        window.location.href = '/crm/customers?ai_analysis=needs_update';
+    }
+}
+
+function runBatchAI() {
+    if (confirm('Run AI analysis on all customers that need it? This may take several minutes.')) {
+        fetch('/crm/customers/batch-ai-analysis', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Batch AI analysis started for ${data.count} customers. Check the progress in the background.`);
+            } else {
+                alert('Error starting batch AI analysis: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error starting batch AI analysis. Please try again.');
+        });
+    }
+}
+
+function filterHighValue(type) {
+    if (type === 'quotes') {
+        window.location.href = '/quotes?min_value=10000';
+    } else if (type === 'customers') {
+        window.location.href = '/crm/customers?high_value=true';
+    }
+}
+
+function filterSector(sector) {
+    window.location.href = `/crm/customers?sector=${sector}`;
+}
+
+function exportData() {
+    const exportType = prompt('What would you like to export?\n1. Customers\n2. Leads\n3. Quotes\n4. All Data\n\nEnter the number:');
+    
+    let endpoint = '';
+    switch(exportType) {
+        case '1':
+            endpoint = '/crm/customers/export';
+            break;
+        case '2':
+            endpoint = '/lead-generation/leads/export';
+            break;
+        case '3':
+            endpoint = '/quotes/export';
+            break;
+        case '4':
+            endpoint = '/admin/export/all';
+            break;
+        default:
+            return;
+    }
+    
+    window.open(endpoint, '_blank');
+}
+
+function generateReport() {
+    const reportType = prompt('What type of report would you like to generate?\n1. Sales Pipeline\n2. Customer Analysis\n3. Lead Conversion\n4. Financial Summary\n\nEnter the number:');
+    
+    let endpoint = '';
+    switch(reportType) {
+        case '1':
+            endpoint = '/reports/sales-pipeline';
+            break;
+        case '2':
+            endpoint = '/reports/customer-analysis';
+            break;
+        case '3':
+            endpoint = '/reports/lead-conversion';
+            break;
+        case '4':
+            endpoint = '/reports/financial-summary';
+            break;
+        default:
+            return;
+    }
+    
+    window.open(endpoint, '_blank');
+}
+
+function scheduleFollowUps() {
+    window.location.href = '/crm/follow-ups/schedule';
+}
 </script>
 {% endblock %}

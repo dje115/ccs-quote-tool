@@ -28,6 +28,14 @@ def from_json_filter(value):
     except (ValueError, TypeError):
         return None
 
+# Add dict filter for templates to exclude specific keys
+@app.template_filter('dict_filter')
+def dict_filter_filter(dict_obj, exclude_key):
+    """Filter out a specific key from a dictionary"""
+    if not dict_obj:
+        return {}
+    return {k: v for k, v in dict_obj.items() if k != exclude_key}
+
 # Initialize extensions
 login_manager = LoginManager()
 login_manager.init_app(app)

@@ -135,6 +135,27 @@ class LeadGenerationService:
             - May have similar IT infrastructure needs
             """
         
+        elif campaign.prompt_type == 'competitor_verification':
+            prompt = base_prompt + """
+            
+            VERIFY AND COLLECT DATA FOR IDENTIFIED COMPETITOR COMPANIES:
+            
+            This campaign is for verifying and collecting detailed information about specific competitor companies that have already been identified.
+            
+            IMPORTANT: You are NOT finding new companies - you are verifying existing ones.
+            
+            For each competitor company provided, verify and collect:
+            - Confirmation that the company exists and is active
+            - Current website URL and contact information
+            - Business address and postcode
+            - Companies House registration details
+            - Current business status and services offered
+            - Key personnel and decision makers
+            - Recent business activities or news
+            
+            Focus on getting ACCURATE, CURRENT information for each competitor.
+            """
+        
         elif campaign.prompt_type == 'education':
             prompt = base_prompt + """
             
@@ -763,6 +784,8 @@ CRITICAL: Use web search to find REAL businesses. Output ONLY the JSON object. N
             return f"retail businesses offices {base_location} commercial companies"
         elif campaign.prompt_type == 'similar_business':
             return f"companies similar to {campaign.company_name_filter} {base_location}"
+        elif campaign.prompt_type == 'competitor_verification':
+            return f"competitor companies verification {base_location}"
         else:
             return f"businesses companies {base_location} structured cabling prospects"
     
@@ -868,6 +891,16 @@ CRITICAL: Use web search to find REAL businesses. Output ONLY the JSON object. N
                 'commercial',
                 'business services',
                 'consulting'
+            ]
+        elif campaign.prompt_type == 'competitor_verification':
+            base_terms = [
+                'IT services',
+                'computer services',
+                'managed services',
+                'technology services',
+                'software development',
+                'network services',
+                'IT support'
             ]
         else:
             # Default search terms
@@ -1224,11 +1257,31 @@ CRITICAL: Use web search to find REAL businesses. Output ONLY the JSON object. N
         
         for lead_data in leads_data:
             try:
-                # Check for duplicates
+                # Check for duplicates within the same campaign first
+                existing_lead_in_campaign = Lead.query.filter_by(
+                    campaign_id=campaign.id,
+                    company_name=lead_data['company_name']
+                ).first()
+                if existing_lead_in_campaign:
+                    duplicates_found += 1
+                    print(f"[DEDUP] Skipping duplicate in same campaign: {lead_data['company_name']}")
+                    continue
+                
+                # Check for duplicates across all campaigns (if not including existing customers)
                 if not campaign.include_existing_customers:
-                    existing_lead = Lead.query.filter_by(company_name=lead_data['company_name']).first()
-                    if existing_lead:
+                    # Check for existing leads
+                    existing_lead_anywhere = Lead.query.filter_by(company_name=lead_data['company_name']).first()
+                    if existing_lead_anywhere:
                         duplicates_found += 1
+                        print(f"[DEDUP] Skipping duplicate across campaigns: {lead_data['company_name']}")
+                        continue
+                    
+                    # Check for existing customers in CRM
+                    from models_crm import Customer
+                    existing_customer = Customer.query.filter_by(company_name=lead_data['company_name']).first()
+                    if existing_customer:
+                        duplicates_found += 1
+                        print(f"[DEDUP] Skipping - already exists as customer: {lead_data['company_name']}")
                         continue
                 
                 # Create new lead

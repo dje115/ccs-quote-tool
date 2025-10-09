@@ -127,6 +127,7 @@ class Lead(db.Model):
     linkedin_data = Column(JSON, nullable=True)
     companies_house_data = Column(JSON, nullable=True)
     website_data = Column(JSON, nullable=True)
+    google_maps_data = Column(JSON, nullable=True)
     social_media_links = Column(JSON, nullable=True)
     
     # Notes and follow-up
